@@ -29,9 +29,9 @@ The application is fully containerized using Docker Compose.
 
 ```mermaid
 graph TD
-    User[User / Client] -->|HTTP| Client[Frontend (Nuxt 3)]
-    Client -->|API Calls (Proxy/Direct)| Server[Backend (Go / Gin)]
-    Server -->|Read/Write| DB[(MongoDB)]
+    User["User / Client"] -->|HTTP| Client["Frontend (Nuxt 3)"]
+    Client -->|"API Calls (Proxy/Direct)"| Server["Backend (Go / Gin)"]
+    Server -->|"Read/Write"| DB[("MongoDB")]
     
     subgraph Docker Network
         Client
