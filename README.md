@@ -95,4 +95,4 @@ To ensure everything is connected:
 3. If successful, you will see a green "Backend Status: OK" message, confirming the Nuxt app can communicate with the Go backend inside the Docker network.
 
 ---
-*Created by [Indra-619]*
+*Created by [Indra-619](https://github.com/Indra-619)*
