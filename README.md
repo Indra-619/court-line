@@ -67,10 +67,18 @@ book-lapangan/
 │   ├── pages/              # Nuxt pages
 │   ├── nuxt.config.ts
 │   └── Dockerfile
+├── docs/                   # Documentation
 ├── docker-compose.yml
 ├── .env.example
+├── CONTRIBUTING.md
 └── README.md
 ```
+
+## 📚 Documentation
+
+- [**Setup Guide**](docs/SETUP.md) - Detailed instructions for Docker and Manual setup.
+- [**Testing Guide**](docs/TESTING.md) - How to run manual tests and verify health.
+- [**Contributing Guide**](CONTRIBUTING.md) - Workflow, code style, and PR process.
 
 ## 🚀 Getting Started
 
