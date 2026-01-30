@@ -14,7 +14,8 @@ services:
       - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key}
       - FRONTEND_URL=http://localhost:3000
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     networks:
       - app-network
 
@@ -37,6 +38,11 @@ services:
       - "27017:27017"
     volumes:
       - mongo-data:/data/db
+    healthcheck:
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - app-network
 
