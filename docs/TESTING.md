@@ -1,68 +1,80 @@
-# 🧪 Testing Guide
+# 🧪 Testing & Quality Assurance
 
-Ensure stability and reliability with our testing protocols. Currently, we focus on manual verification while automated suites are being established.
+Welcome to the **Court Line** testing guide. Use this documentation to ensure your contributions meet our quality standards. Our testing strategy ensures reliance, stability, and zero-build-failures.
 
 ---
 
-## 🕵️ Manual Verification
+## 🚀 Quick Verification
 
-Since automated tests are under development, please verify the following critical paths manually.
+Before rewriting any code or pushing changes, run our **Master Guardrail Script**. This script validates the entire stack in one go.
 
-### 1. 🔌 Backend Health Check
-Ensure the Go server is up and database connection is active.
-
-```bash
-# Check simple health (if implemented) or root
-curl -I http://localhost:8080/
+```powershell
+# Run from the project root
+.\scripts\verify_build.ps1
 ```
 
-**✅ Success Criteria:**
-- Status Code: `200 OK`
-- Logs show: `Connected to MongoDB`
+**What this checks:**
+1.  **Backend Integrity**: Runs all Go unit tests.
+2.  **Frontend Type Safety**: Verification of TypeScript types in Vue/Nuxt.
+3.  **Infrastructure Config**: Validates `docker-compose.yml` logic.
 
-### 2. 🌐 Frontend Functionality
-Navigate to [http://localhost:3000](http://localhost:3000).
-
-| Feature | Action | Expected Result |
-| :--- | :--- | :--- |
-| **Home Page** | Open root URL | Landing page loads with hero section |
-| **Auth** | Click "Login with Google" | Redirects to Google, then back to app |
-| **Bookings** | Click "Book Now" | Form appears, date selection works |
-
-### 3. 💾 Data Persistence
-1. **Create a Booking**: Submit a form on the frontend.
-2. **Verify in DB**:
-   ```bash
-   # Using Docker
-   docker exec -it book-lapangan-mongo-1 mongosh booklapangan --eval "db.bookings.find().pretty()"
-   ```
+> 🛑 **Note:** If this script fails, the CI pipeline will also fail. Fix errors before pushing!
 
 ---
 
-## 🤖 Automated Testing (Coming Soon)
+## 🛠️ Detailed Testing Layers
 
-We are setting up standard testing frameworks for robust CI/CD.
+### 1. Backend (Go) 🔙
+We use the standard `testing` package along with `testify` for assertions.
 
-### Backend (Go)
+**Running Tests Manually:**
 ```bash
 cd backend
 go test -v ./...
 ```
 
-### Frontend (Vitest)
+**Writing a New Test:**
+Create a file ending in `_test.go` next to the code you want to test.
+```go
+func TestHealthCheck(t *testing.T) {
+    // Setup & Assertion
+}
+```
+
+### 2. Frontend (Nuxt/Vue) 🎨
+We rely on **Static Analysis (Type Checking)** and **Unit Tests**.
+
+**Static Analysis:**
+Ensures no type errors exist in your components.
 ```bash
 cd frontend
-npm run test
+npm run typecheck
+```
+
+**Unit Tests (Vitest):**
+*Coming Soon: Component rendering tests.*
+
+### 3. Infrastructure & Database 🗄️
+**Health Check:**
+Verify the API and Database connection are active.
+```bash
+curl -I http://localhost:8080/health
+```
+
+**Manual Data Verification:**
+You can inspect the MongoDB container directly:
+```bash
+docker exec -it book-lapangan-mongo-1 mongosh booklapangan
 ```
 
 ---
 
-## 📝 Writing Tests
+## ✅ Pre-Merge Checklist
+- [ ] Run `.\scripts\verify_build.ps1` and ensure it passes.
+- [ ] Added unit tests for any new backend logic?
+- [ ] Checked for TypeScript errors in new Vue components?
+- [ ] Verified the app starts locally (`docker-compose up`).
 
-If you are adding a feature, **please** consider adding a unit test file `_test.go` adjacent to your logic.
+---
 
-```go
-func TestCalculatePrice(t *testing.T) {
-    // ...
-}
-```
+*“Quality is not an act, it is a habit.”*

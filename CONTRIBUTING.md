@@ -62,8 +62,8 @@ We follow the **Conventional Commits** specification.
 
 ## 📬 Pull Request Process
 
-1. UPDATE the `README.md` or docs with details of changes if relevant.
-2. ENSURE all manual verification steps pass.
+1. **Run Verification**: Execute `.\scripts\verify_build.ps1` and ensure all checks pass. 🛡️
+2. UPDATE the `README.md` or docs with details of changes if relevant.
 3. DESCRIBE your changes clearly in the PR description.
 4. LINK to any related issues (e.g., `Closes #123`).
 

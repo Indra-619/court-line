@@ -29,9 +29,18 @@ git clone https://github.com/Indra-619/court-line.git
 cd book-lapangan
 ```
 
+## 2. ✅ Verify Installation
+
+Run our safety script to ensure your environment is ready (Go, Node, Docker modules):
+
+```powershell
+# Run verification script
+.\scripts\verify_build.ps1
+```
+
 ---
 
-## 2. 🔐 Environment Configuration
+## 3. 🔐 Environment Configuration
 
 We use environment variables to keep secrets safe.
 
@@ -51,7 +60,7 @@ We use environment variables to keep secrets safe.
 
 ---
 
-## 3. 🚀 Running the App
+## 4. 🚀 Running the App
 
 Choose your preferred method below.
 
