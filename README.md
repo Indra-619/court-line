@@ -1,6 +1,7 @@
 # 🏟️ Book Lapangan Online (CourtLine)
 
 ![Project Status](https://img.shields.io/badge/status-active-success.svg)
+![Build Status](https://img.shields.io/badge/build-safe-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 A modern fullstack application for booking sports venues online, featuring Google OAuth authentication, real-time availability, and a beautiful dark-themed UI.
