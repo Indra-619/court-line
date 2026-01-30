@@ -2,10 +2,10 @@ package main
 
 import (
 	"log"
-	"net/http"
 	"os"
 
-    "github.com/your-username/book-lapangan/backend/internal/database"
+	"github.com/your-username/book-lapangan/backend/internal/database"
+	"github.com/your-username/book-lapangan/backend/internal/routes"
 )
 
 func main() {
@@ -14,17 +14,16 @@ func main() {
 		port = "8080"
 	}
 
-    // Connect to MongoDB
-    if err := database.Connect(); err != nil {
-        log.Fatalf("Failed to connect to database: %v", err)
-    }
+	// Connect to MongoDB
+	if err := database.Connect(); err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
 
-	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("OK"))
-	})
+	// Setup router
+	router := routes.SetupRouter()
 
 	log.Printf("Server starting on port %s", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
+	if err := router.Run(":" + port); err != nil {
 		log.Fatal(err)
 	}
 }
