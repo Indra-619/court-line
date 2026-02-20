@@ -30,8 +30,13 @@ We use the standard `testing` package along with `testify` for assertions.
 **Running Tests Manually:**
 ```bash
 cd backend
-go test -v ./...
+go test -v ./... -cover
 ```
+
+**Quality Sentinel Standards:**
+- **Code Coverage**: All new UseCase logic must have **>85% coverage**.
+- **Static Analysis**: All tests must pass before merging.
+
 
 **Writing a New Test:**
 Create a file ending in `_test.go` next to the code you want to test.

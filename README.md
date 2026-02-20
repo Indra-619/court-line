@@ -35,16 +35,23 @@ A modern fullstack application for booking sports venues online, featuring Googl
 
 ```mermaid
 graph TD
-    User["User / Client"] -->|HTTP| Client["Frontend (Nuxt 3)"]
-    Client -->|"API Calls"| Server["Backend (Go / Gin)"]
-    Server -->|"Read/Write"| DB[("MongoDB")]
-    Server -->|"OAuth"| Google["Google OAuth"]
-    
-    subgraph Docker Network
-        Client
-        Server
-        DB
+    User["User / Client"] -->|HTTP/Vue| Client["Frontend (Nuxt 3)"]
+    subgraph Frontend
+        Client --> Services["Service Layer"]
+        Services --> Composables["Auth Composables"]
     end
+    
+    Services -->|"API Calls (Result Pattern)"| Server["Backend (Go / Gin)"]
+    
+    subgraph Backend (Clean Architecture)
+        Server --> Presentation["Presentation (API Handlers)"]
+        Presentation --> UseCase["Use Case (Business Logic)"]
+        UseCase --> Entity["Domain (Entities)"]
+        UseCase --> RepoInterface["Domain (Repository Interfaces)"]
+        RepoInterface -.->|Implementation| Infrastructure["Infrastructure (MongoDB)"]
+    end
+    
+    Infrastructure -->|Read/Write| DB[("MongoDB")]
 ```
 
 ## 📂 Project Structure
@@ -52,20 +59,22 @@ graph TD
 ```bash
 book-lapangan/
 ├── backend/
-│   ├── cmd/server/         # Entry point
+│   ├── cmd/server/         # Entry point (Dependency Injection wiring)
 │   ├── internal/
-│   │   ├── database/       # MongoDB connection
-│   │   ├── handlers/       # API handlers
+│   │   ├── domain/         # Domain Layer (Entities & Repository Interfaces)
+│   │   ├── usecase/        # Use Case Layer (Business Logic)
+│   │   ├── infrastructure/ # Infrastructure Layer (Repo Implementations)
+│   │   ├── presentation/   # Presentation Layer (DI-based Handlers)
 │   │   ├── middleware/     # Auth middleware
-│   │   ├── models/         # Data models
-│   │   └── routes/         # Route definitions
+│   │   └── routes/         # Route definitions (DI-based)
+│   ├── pkg/result/         # Generic Result pattern for error handling
 │   ├── go.mod
 │   └── Dockerfile
 ├── frontend/
-│   ├── assets/css/         # Global styles
+│   ├── services/           # Service Layer (API interactions)
 │   ├── components/         # Vue components
-│   ├── composables/        # Auth composable
-│   ├── pages/              # Nuxt pages
+│   ├── composables/        # Auth composables
+│   ├── pages/              # Nuxt pages (TypeScript & Services)
 │   ├── nuxt.config.ts
 │   └── Dockerfile
 ├── docs/                   # Documentation
@@ -74,6 +83,7 @@ book-lapangan/
 ├── CONTRIBUTING.md
 └── README.md
 ```
+
 
 ## 📚 Documentation
 
