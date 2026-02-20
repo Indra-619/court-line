@@ -64,15 +64,15 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		userObjID, err := primitive.ObjectIDFromHex(userIDStr)
+		_, err = primitive.ObjectIDFromHex(userIDStr)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID format"})
 			c.Abort()
 			return
 		}
 
-		// Set user ID in context
-		c.Set("userID", userObjID)
+		// Set user ID in context as string
+		c.Set("userID", userIDStr)
 		c.Next()
 	}
 }
@@ -123,13 +123,7 @@ func OptionalAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		userObjID, err := primitive.ObjectIDFromHex(userIDStr)
-		if err != nil {
-			c.Next()
-			return
-		}
-
-		c.Set("userID", userObjID)
+		c.Set("userID", userIDStr)
 		c.Next()
 	}
 }

@@ -6,10 +6,16 @@ import (
 
 	"github.com/your-username/book-lapangan/backend/internal/handlers"
 	"github.com/your-username/book-lapangan/backend/internal/middleware"
+	"github.com/your-username/book-lapangan/backend/internal/presentation/api"
 )
 
+type RouterConfig struct {
+	CourtHandler   *api.CourtHandler
+	BookingHandler *api.BookingHandler
+}
+
 // SetupRouter configures all routes
-func SetupRouter() *gin.Engine {
+func SetupRouter(cfg RouterConfig) *gin.Engine {
 	r := gin.Default()
 
 	// CORS configuration
@@ -27,7 +33,7 @@ func SetupRouter() *gin.Engine {
 		c.JSON(200, gin.H{"status": "OK"})
 	})
 
-	// Auth routes (public)
+	// Auth routes (public) - Still using legacy handlers for now
 	auth := r.Group("/auth")
 	{
 		auth.GET("/google", handlers.GoogleLogin)
@@ -43,28 +49,28 @@ func SetupRouter() *gin.Engine {
 	}
 
 	// API routes
-	api := r.Group("/api")
+	apiGroup := r.Group("/api")
 	{
 		// Courts - public read, protected write
-		api.GET("/courts", handlers.GetCourts)
-		api.GET("/courts/:id", handlers.GetCourtByID)
-		api.GET("/courts/:id/bookings", handlers.GetBookingsByCourtID)
+		apiGroup.GET("/courts", cfg.CourtHandler.GetAllCourts)
+		apiGroup.GET("/courts/:id", cfg.CourtHandler.GetCourtByID)
+		apiGroup.GET("/courts/:id/bookings", cfg.BookingHandler.GetBookingsByCourt)
 
 		// Protected court routes
-		courtsProtected := api.Group("/courts")
+		courtsProtected := apiGroup.Group("/courts")
 		courtsProtected.Use(middleware.AuthMiddleware())
 		{
-			courtsProtected.POST("", handlers.CreateCourt)
-			courtsProtected.PUT("/:id", handlers.UpdateCourt)
-			courtsProtected.DELETE("/:id", handlers.DeleteCourt)
+			courtsProtected.POST("", cfg.CourtHandler.CreateCourt)
+			courtsProtected.PUT("/:id", cfg.CourtHandler.UpdateCourt)
+			courtsProtected.DELETE("/:id", cfg.CourtHandler.DeleteCourt)
 		}
 
 		// Bookings - all protected
-		bookings := api.Group("/bookings")
+		bookings := apiGroup.Group("/bookings")
 		bookings.Use(middleware.AuthMiddleware())
 		{
-			bookings.POST("", handlers.CreateBooking)
-			bookings.GET("", handlers.GetBookings)
+			bookings.POST("", cfg.BookingHandler.CreateBooking)
+			bookings.GET("", cfg.BookingHandler.GetMyBookings)
 		}
 	}
 
