@@ -15,3 +15,8 @@ main
 # System
 .DS_Store
 Thumbs.db
+
+# Tests
+coverage/
+*.lcov
+frontend/coverage/

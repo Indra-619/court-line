@@ -42,9 +42,18 @@ graph LR
 
 ## ✍️ Coding Guidelines
 
+### 🏗️ Architectural Standards
+- **Clean Architecture**: Follow the separation of layers:
+    - `domain`: Entities and Repository interfaces. **No dependencies**.
+    - `usecase`: Business logic. Depends only on `domain`.
+    - `infrastructure`: Concrete implementations (DB, external APIs).
+    - `presentation`: API handlers. Depends only on `usecase`.
+- **Result Pattern**: Use the `result` package in `pkg/result` for all business logic and handler returns to ensure explicit error handling.
+- **Service Layer (Frontend)**: Decouple pages from API calls using the `services/` layer.
+
 ### 🎨 Style Guide
 - **Go**: Always run `gofmt` before committing.
-- **Vue/Nuxt**: Use semantically correct HTML and follow Vue best practices.
+- **Frontend**: Use TypeScript for all pages and components (`<script setup lang="ts">`).
 - **Naming**: Use `camelCase` for JS/Go variables, `kebab-case` for filenames.
 
 ### 💬 Commit Messages
@@ -63,6 +72,7 @@ We follow the **Conventional Commits** specification.
 ## 📬 Pull Request Process
 
 1. **Run Verification**: Execute `.\scripts\verify_build.ps1` and ensure all checks pass. 🛡️
+   - Quality Sentinel: New logic must have **>85% test coverage**.
 2. UPDATE the `README.md` or docs with details of changes if relevant.
 3. DESCRIBE your changes clearly in the PR description.
 4. LINK to any related issues (e.g., `Closes #123`).

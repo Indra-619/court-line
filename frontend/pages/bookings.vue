@@ -25,7 +25,7 @@
 
       <div v-else class="bookings-list">
         <div v-for="booking in bookings" :key="booking.id" class="booking-card">
-          <div class="booking-status" :class="`status-${booking.status}`">
+          <div v-if="booking.status" class="booking-status" :class="`status-${booking.status}`">
             {{ formatStatus(booking.status) }}
           </div>
           <div class="booking-info">
@@ -37,26 +37,27 @@
             </div>
           </div>
           <div class="booking-price">
-            <span class="price">Rp {{ formatPrice(booking.totalPrice) }}</span>
+            <span v-if="booking.totalPrice !== undefined" class="price">Rp {{ formatPrice(booking.totalPrice) }}</span>
           </div>
         </div>
       </div>
+
     </div>
   </div>
 </template>
 
-<script setup>
-const config = useRuntimeConfig()
-const { isLoggedIn, loginWithGoogle, getAuthHeader } = useAuth()
+<script setup lang="ts">
+const { isLoggedIn, loginWithGoogle } = useAuth()
+import { BookingService, type Booking } from '~/services/booking.service'
 
-const bookings = ref([])
+const bookings = ref<Booking[]>([])
 const loading = ref(true)
 
-const formatPrice = (price) => {
+const formatPrice = (price: number) => {
   return new Intl.NumberFormat('id-ID').format(price)
 }
 
-const formatDate = (dateStr) => {
+const formatDate = (dateStr: string) => {
   return new Date(dateStr).toLocaleDateString('id-ID', {
     weekday: 'long',
     year: 'numeric',
@@ -65,8 +66,8 @@ const formatDate = (dateStr) => {
   })
 }
 
-const formatStatus = (status) => {
-  const statusMap = {
+const formatStatus = (status: string) => {
+  const statusMap: Record<string, string> = {
     pending: 'Pending',
     confirmed: 'Confirmed',
     cancelled: 'Cancelled',
@@ -82,10 +83,7 @@ onMounted(async () => {
   }
 
   try {
-    const response = await $fetch(`${config.public.apiBase}/api/bookings`, {
-      headers: getAuthHeader()
-    })
-    bookings.value = response.data || []
+    bookings.value = await BookingService.getMyBookings()
   } catch (error) {
     console.error('Failed to fetch bookings:', error)
   } finally {
@@ -93,6 +91,7 @@ onMounted(async () => {
   }
 })
 </script>
+
 
 <style scoped>
 .bookings-page {
