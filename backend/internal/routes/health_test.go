@@ -8,7 +8,8 @@ import (
 
 func TestHealthRoute(t *testing.T) {
 	// Setup router
-	r := SetupRouter()
+	// Setup router with empty config (health route doesn't need handlers)
+	r := SetupRouter(RouterConfig{})
 
 	// Create a response recorder
 	w := httptest.NewRecorder()
