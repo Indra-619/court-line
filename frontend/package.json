@@ -10,8 +10,13 @@
     "typecheck": "nuxt typecheck"
   },
   "devDependencies": {
+    "@nuxt/test-utils": "^4.0.0",
     "@types/node": "^25.0.6",
+    "@vitest/coverage-v8": "^4.0.18",
+    "@vue/test-utils": "^2.4.6",
+    "happy-dom": "^20.6.3",
     "nuxt": "^3.10.0",
+    "vitest": "^4.0.18",
     "vue": "^3.4.0",
     "vue-router": "^4.2.5"
   }
