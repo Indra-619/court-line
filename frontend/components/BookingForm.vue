@@ -38,19 +38,20 @@
 
       <div class="time-row">
         <div class="form-group">
-          <label class="form-label">Start Time</label>
-          <select v-model="form.startTime" class="form-input" required>
+          <label class="form-label" for="startTime">Start Time</label>
+          <select id="startTime" v-model="form.startTime" class="form-input" required>
             <option value="">Select</option>
             <option v-for="time in timeSlots" :key="time" :value="time">{{ time }}</option>
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">End Time</label>
-          <select v-model="form.endTime" class="form-input" required>
+          <label class="form-label" for="endTime">End Time</label>
+          <select id="endTime" v-model="form.endTime" class="form-input" required>
             <option value="">Select</option>
             <option v-for="time in endTimeSlots" :key="time" :value="time">{{ time }}</option>
           </select>
         </div>
+
       </div>
 
       <div v-if="estimatedPrice > 0" class="price-estimate">
@@ -66,22 +67,17 @@
   </div>
 </template>
 
-<script setup>
-const props = defineProps({
-  courtId: {
-    type: String,
-    required: true
-  },
-  pricePerHour: {
-    type: Number,
-    required: true
-  }
-})
+<script setup lang="ts">
+import { BookingService } from '~/services/booking.service'
+
+const props = defineProps<{
+  courtId: string
+  pricePerHour: number
+}>()
 
 const emit = defineEmits(['success', 'error'])
 
-const { isLoggedIn, loginWithGoogle, getAuthHeader, user } = useAuth()
-const config = useRuntimeConfig()
+const { isLoggedIn, loginWithGoogle, user } = useAuth()
 
 const loading = ref(false)
 
@@ -131,7 +127,7 @@ const estimatedPrice = computed(() => {
   return hours * props.pricePerHour
 })
 
-const formatPrice = (price) => {
+const formatPrice = (price: number) => {
   return new Intl.NumberFormat('id-ID').format(price)
 }
 
@@ -144,23 +140,16 @@ const submitBooking = async () => {
   loading.value = true
 
   try {
-    const response = await $fetch(`${config.public.apiBase}/api/bookings`, {
-      method: 'POST',
-      headers: {
-        ...getAuthHeader(),
-        'Content-Type': 'application/json'
-      },
-      body: {
-        courtId: props.courtId,
-        customerName: form.value.customerName,
-        customerPhone: form.value.customerPhone,
-        date: form.value.date,
-        startTime: form.value.startTime,
-        endTime: form.value.endTime
-      }
+    const response = await BookingService.create({
+      courtId: props.courtId,
+      customerName: form.value.customerName,
+      customerPhone: form.value.customerPhone,
+      date: form.value.date,
+      startTime: form.value.startTime,
+      endTime: form.value.endTime
     })
 
-    emit('success', response.data)
+    emit('success', response)
     
     // Reset form
     form.value = {
@@ -170,7 +159,7 @@ const submitBooking = async () => {
       startTime: '',
       endTime: ''
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Booking failed:', error)
     emit('error', error.message || 'Failed to create booking')
   } finally {
@@ -178,6 +167,7 @@ const submitBooking = async () => {
   }
 }
 </script>
+
 
 <style scoped>
 .booking-form {
