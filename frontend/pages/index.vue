@@ -53,11 +53,11 @@
   </div>
 </template>
 
-<script setup>
-const config = useRuntimeConfig()
+<script setup lang="ts">
 const { initAuth } = useAuth()
+import { CourtService, type Court } from '~/services/court.service'
 
-const courts = ref([])
+const courts = ref<Court[]>([])
 const loading = ref(true)
 
 onMounted(async () => {
@@ -66,45 +66,15 @@ onMounted(async () => {
   
   // Fetch courts
   try {
-    const response = await $fetch(`${config.public.apiBase}/api/courts`)
-    courts.value = response.data || []
+    courts.value = await CourtService.getAll()
   } catch (error) {
     console.error('Failed to fetch courts:', error)
-    // Add sample data for demo
-    courts.value = [
-      {
-        id: '1',
-        name: 'Lapangan Futsal A',
-        type: 'Futsal',
-        location: 'Jakarta Selatan',
-        pricePerHour: 150000,
-        imageUrl: 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&h=300&fit=crop',
-        isAvailable: true
-      },
-      {
-        id: '2',
-        name: 'Court Badminton Elite',
-        type: 'Badminton',
-        location: 'Jakarta Pusat',
-        pricePerHour: 75000,
-        imageUrl: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=400&h=300&fit=crop',
-        isAvailable: true
-      },
-      {
-        id: '3',
-        name: 'Basketball Arena',
-        type: 'Basketball',
-        location: 'Depok',
-        pricePerHour: 200000,
-        imageUrl: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=400&h=300&fit=crop',
-        isAvailable: false
-      }
-    ]
   } finally {
     loading.value = false
   }
 })
 </script>
+
 
 <style scoped>
 .hero {
