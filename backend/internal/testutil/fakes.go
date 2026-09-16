@@ -5,6 +5,7 @@ package testutil
 import (
 	"context"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/Indra-619/court-line/backend/internal/domain/entity"
@@ -256,7 +257,11 @@ func (f *FakeUserRepository) Update(ctx context.Context, user *entity.User) erro
 // FakeRefreshTokenRepository is an in-memory RefreshTokenRepository.
 // FindByHash applies the same validity filter as the Mongo
 // implementation: expired or revoked records are treated as unknown.
+// FindAndDeleteByHash deletes under a lock so concurrent refreshes
+// observe the same single-winner rotation semantics as Mongo's
+// FindOneAndDelete.
 type FakeRefreshTokenRepository struct {
+	mu     sync.Mutex
 	Tokens map[string]*entity.RefreshToken // keyed by token hash
 	Err    error                           // returned by every operation when set
 }
@@ -287,6 +292,20 @@ func (f *FakeRefreshTokenRepository) FindByHash(ctx context.Context, hash string
 	if !ok || record.Revoked || time.Now().After(record.ExpiresAt) {
 		return nil, repository.ErrNotFound
 	}
+	return record, nil
+}
+
+func (f *FakeRefreshTokenRepository) FindAndDeleteByHash(ctx context.Context, hash string) (*entity.RefreshToken, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.Err != nil {
+		return nil, f.Err
+	}
+	record, ok := f.Tokens[hash]
+	if !ok || record.Revoked || time.Now().After(record.ExpiresAt) {
+		return nil, repository.ErrNotFound
+	}
+	delete(f.Tokens, hash)
 	return record, nil
 }
 

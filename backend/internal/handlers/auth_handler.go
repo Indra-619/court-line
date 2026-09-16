@@ -231,15 +231,11 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	}
 
 	tokenHash := sha256Hex(input.RefreshToken)
-	record, err := h.refreshTokens.FindByHash(ctx, tokenHash)
+	// Rotate atomically: only one concurrent refresh can claim the
+	// token, and it is dead from this point on.
+	record, err := h.refreshTokens.FindAndDeleteByHash(ctx, tokenHash)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired refresh token"})
-		return
-	}
-
-	// Rotate: the old token is dead from this point on.
-	if err := h.refreshTokens.DeleteByHash(ctx, tokenHash); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to refresh session"})
 		return
 	}
 

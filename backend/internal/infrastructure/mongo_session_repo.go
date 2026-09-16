@@ -78,6 +78,30 @@ func (r *MongoRefreshTokenRepository) FindByHash(ctx context.Context, hash strin
 	}, nil
 }
 
+func (r *MongoRefreshTokenRepository) FindAndDeleteByHash(ctx context.Context, hash string) (*entity.RefreshToken, error) {
+	filter := bson.M{
+		"tokenHash": hash,
+		"revoked":   false,
+		"expiresAt": bson.M{"$gt": timeNow()},
+	}
+
+	var doc models.RefreshToken
+	if err := r.coll.FindOneAndDelete(ctx, filter).Decode(&doc); err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, repository.ErrNotFound
+		}
+		return nil, err
+	}
+	return &entity.RefreshToken{
+		ID:        doc.ID.Hex(),
+		UserID:    doc.UserID,
+		TokenHash: doc.TokenHash,
+		ExpiresAt: doc.ExpiresAt,
+		CreatedAt: doc.CreatedAt,
+		Revoked:   doc.Revoked,
+	}, nil
+}
+
 func (r *MongoRefreshTokenRepository) DeleteByHash(ctx context.Context, hash string) error {
 	res, err := r.coll.DeleteOne(ctx, bson.M{"tokenHash": hash})
 	if err != nil {
