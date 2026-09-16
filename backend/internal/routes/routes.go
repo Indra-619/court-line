@@ -1,12 +1,39 @@
 package routes
 
 import (
+	"os"
+	"strings"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
 	"github.com/Indra-619/court-line/backend/internal/handlers"
 	"github.com/Indra-619/court-line/backend/internal/middleware"
 )
+
+// defaultAllowedOrigins are the development-time CORS origins used
+// when ALLOWED_ORIGINS is not set.
+var defaultAllowedOrigins = []string{"http://localhost:3000", "http://frontend:3000"}
+
+// allowedOrigins reads ALLOWED_ORIGINS (comma-separated). When it is
+// set and yields at least one entry, those win; otherwise the dev
+// defaults are used. Entries are trimmed and blanks are skipped.
+func allowedOrigins() []string {
+	raw := os.Getenv("ALLOWED_ORIGINS")
+	if strings.TrimSpace(raw) == "" {
+		return defaultAllowedOrigins
+	}
+	var origins []string
+	for _, entry := range strings.Split(raw, ",") {
+		if o := strings.TrimSpace(entry); o != "" {
+			origins = append(origins, o)
+		}
+	}
+	if len(origins) == 0 {
+		return defaultAllowedOrigins
+	}
+	return origins
+}
 
 // Deps carries the handler structs wired by main with their
 // repositories. Routes only reference these; nothing reaches for a
@@ -23,7 +50,7 @@ func SetupRouter(deps Deps) *gin.Engine {
 
 	// CORS configuration
 	config := cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000", "http://frontend:3000"},
+		AllowOrigins:     allowedOrigins(),
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
