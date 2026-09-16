@@ -13,7 +13,11 @@ import (
 
 	"github.com/your-username/book-lapangan/backend/internal/database"
 	"github.com/your-username/book-lapangan/backend/internal/models"
+	"github.com/your-username/book-lapangan/backend/pkg/validate"
 )
+
+// nowFn is injectable for tests.
+var nowFn = time.Now
 
 // CreateBooking creates a new booking (requires authentication)
 func CreateBooking(c *gin.Context) {
@@ -30,6 +34,34 @@ func CreateBooking(c *gin.Context) {
 	var input models.CreateBookingInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate date/time input format and business rules
+	if !validate.ValidateDate(input.Date) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid date format, expected YYYY-MM-DD"})
+		return
+	}
+	if validate.IsPastDate(input.Date, nowFn()) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Booking date cannot be in the past"})
+		return
+	}
+	if !validate.ValidateClock(input.StartTime) || !validate.ValidateClock(input.EndTime) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid time format, expected HH:MM"})
+		return
+	}
+	startMinutes, err := validate.ToMinutes(input.StartTime)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	endMinutes, err := validate.ToMinutes(input.EndTime)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if endMinutes <= startMinutes {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "End time must be after start time"})
 		return
 	}
 
