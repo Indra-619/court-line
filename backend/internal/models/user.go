@@ -6,7 +6,8 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-// User represents a user in the system
+// User is the BSON persistence struct for the users collection; the
+// corresponding domain struct is entity.User in internal/domain/entity.
 type User struct {
 	ID        primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	GoogleID  string             `bson:"googleId" json:"googleId"`
