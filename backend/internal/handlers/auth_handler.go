@@ -59,15 +59,27 @@ func init() {
 	}
 }
 
-// AuthHandler serves the /auth endpoints on top of an injected user
-// repository; it never touches the database driver directly.
+// AuthHandler serves the /auth endpoints on top of injected
+// repositories; it never touches the database driver directly.
 type AuthHandler struct {
-	users repository.UserRepository
+	users         repository.UserRepository
+	refreshTokens repository.RefreshTokenRepository
+	revokedTokens repository.RevokedTokenRepository
 }
 
-// NewAuthHandler builds an AuthHandler backed by the given repository.
-func NewAuthHandler(users repository.UserRepository) *AuthHandler {
-	return &AuthHandler{users: users}
+// NewAuthHandler builds an AuthHandler backed by the given
+// repositories. refreshTokens stores refresh-token hashes;
+// revokedTokens is the jti blacklist used by logout.
+func NewAuthHandler(
+	users repository.UserRepository,
+	refreshTokens repository.RefreshTokenRepository,
+	revokedTokens repository.RevokedTokenRepository,
+) *AuthHandler {
+	return &AuthHandler{
+		users:         users,
+		refreshTokens: refreshTokens,
+		revokedTokens: revokedTokens,
+	}
 }
 
 // GoogleUserInfo represents the user info from Google
@@ -191,7 +203,89 @@ func (h *AuthHandler) ExchangeToken(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": gin.H{"token": jwtToken}})
+	refreshToken, err := h.issueRefreshToken(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"token": jwtToken, "refreshToken": refreshToken}})
+}
+
+// refreshRequest is the body of POST /auth/refresh.
+type refreshRequest struct {
+	RefreshToken string `json:"refreshToken" binding:"required"`
+}
+
+// RefreshToken rotates a valid refresh token into a new JWT + refresh
+// token pair. The presented token is always deleted, so replaying it
+// after a successful rotation fails.
+func (h *AuthHandler) RefreshToken(c *gin.Context) {
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+	defer cancel()
+
+	var input refreshRequest
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired refresh token"})
+		return
+	}
+
+	tokenHash := sha256Hex(input.RefreshToken)
+	record, err := h.refreshTokens.FindByHash(ctx, tokenHash)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired refresh token"})
+		return
+	}
+
+	// Rotate: the old token is dead from this point on.
+	if err := h.refreshTokens.DeleteByHash(ctx, tokenHash); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to refresh session"})
+		return
+	}
+
+	// Rebuild claims from the stored user; a deleted user loses access.
+	user, err := h.users.FindByID(ctx, record.UserID)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired refresh token"})
+		return
+	}
+
+	jwtToken, err := generateJWT(user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
+	}
+
+	newRefreshToken, err := h.issueRefreshToken(ctx, user.ID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"token": jwtToken, "refreshToken": newRefreshToken}})
+}
+
+// refreshTokenTTL is how long an issued refresh token stays valid.
+const refreshTokenTTL = 30 * 24 * time.Hour
+
+// issueRefreshToken generates a fresh refresh token, persists only its
+// SHA-256 hash, and returns the raw token for the client.
+func (h *AuthHandler) issueRefreshToken(ctx context.Context, userID string) (string, error) {
+	raw, err := generateRefreshToken()
+	if err != nil {
+		return "", err
+	}
+	now := time.Now()
+	record := &entity.RefreshToken{
+		UserID:    userID,
+		TokenHash: sha256Hex(raw),
+		ExpiresAt: now.Add(refreshTokenTTL),
+		CreatedAt: now,
+	}
+	if err := h.refreshTokens.Create(ctx, record); err != nil {
+		return "", err
+	}
+	return raw, nil
 }
 
 // GetCurrentUser returns the current authenticated user
@@ -216,16 +310,68 @@ func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": user})
 }
 
-// Logout handles user logout
+// Logout revokes every session for the authenticated user: all stored
+// refresh tokens are deleted and the current JWT's jti is blacklisted
+// until it would have expired naturally.
 func (h *AuthHandler) Logout(c *gin.Context) {
-	// For JWT-based auth, logout is handled client-side by removing the token
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
+	defer cancel()
+
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+	userObjID, ok := userID.(primitive.ObjectID)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	if err := h.refreshTokens.DeleteByUserID(ctx, userObjID.Hex()); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log out"})
+		return
+	}
+
+	// Blacklist the presented access token so it cannot be replayed
+	// for the rest of its lifetime. Absent jti (legacy tokens) is fine:
+	// there is nothing to revoke.
+	if jti, ok := c.Get("jti"); ok {
+		jtiStr, _ := jti.(string)
+		if jtiStr != "" {
+			expiresAt := jwtExpiryFromContext(c)
+			record := &entity.RevokedToken{JTI: jtiStr, ExpiresAt: expiresAt}
+			if err := h.revokedTokens.Create(ctx, record); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to log out"})
+				return
+			}
+		}
+	}
+
 	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
 }
 
-// generateJWT generates a JWT token for the user
+// jwtExpiryFromContext reads the "tokenExp" value set by
+// AuthMiddleware, falling back to now+24h when absent.
+func jwtExpiryFromContext(c *gin.Context) time.Time {
+	if exp, ok := c.Get("tokenExp"); ok {
+		if expTime, ok := exp.(time.Time); ok {
+			return expTime
+		}
+	}
+	return time.Now().Add(24 * time.Hour)
+}
+
+// generateJWT generates a JWT token for the user. Each token carries a
+// unique jti so it can be blacklisted individually on logout.
 func generateJWT(userID string) (string, error) {
+	jti, err := generateJTI()
+	if err != nil {
+		return "", err
+	}
 	claims := jwt.MapClaims{
 		"userId": userID,
+		"jti":    jti,
 		"exp":    time.Now().Add(time.Hour * 24).Unix(), // 24 hours
 		"iat":    time.Now().Unix(),
 	}

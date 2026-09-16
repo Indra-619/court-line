@@ -141,6 +141,19 @@ returns only the authenticated user's own bookings.
 - **CORS**: explicit origin allowlist (`localhost:3000`, `frontend:3000`)
   with credentials.
 
+## Session management
+
+- **Access token**: JWT (HS256), 24h expiry, carrying a unique `jti` claim.
+- **Refresh token**: 32-byte `crypto/rand` hex, 30-day TTL, returned as
+  `data.refreshToken` by `POST /auth/exchange` and `POST /auth/refresh`. Only
+  its SHA-256 hash is persisted (`refresh_tokens` collection, TTL index on
+  `expiresAt`).
+- **Rotation**: every successful `POST /auth/refresh` deletes the presented
+  token and issues a new pair, so a refresh token is single-use.
+- **Logout**: `POST /auth/logout` deletes all refresh tokens for the user and
+  blacklists the current JWT's `jti` (`revoked_tokens` collection, TTL index)
+  until it expires naturally; `AuthMiddleware` rejects blacklisted `jti`s.
+
 ## CI pipeline
 
 GitHub Actions (`.github/workflows/ci.yml`) runs on pushes to `main` and on

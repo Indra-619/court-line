@@ -253,6 +253,96 @@ func (f *FakeUserRepository) Update(ctx context.Context, user *entity.User) erro
 	return nil
 }
 
+// FakeRefreshTokenRepository is an in-memory RefreshTokenRepository.
+// FindByHash applies the same validity filter as the Mongo
+// implementation: expired or revoked records are treated as unknown.
+type FakeRefreshTokenRepository struct {
+	Tokens map[string]*entity.RefreshToken // keyed by token hash
+	Err    error                           // returned by every operation when set
+}
+
+func NewFakeRefreshTokenRepository() *FakeRefreshTokenRepository {
+	return &FakeRefreshTokenRepository{Tokens: make(map[string]*entity.RefreshToken)}
+}
+
+func (f *FakeRefreshTokenRepository) Create(ctx context.Context, record *entity.RefreshToken) error {
+	if f.Err != nil {
+		return f.Err
+	}
+	if record.ID == "" {
+		record.ID = NewID(len(f.Tokens) + 1)
+	}
+	if record.CreatedAt.IsZero() {
+		record.CreatedAt = time.Now()
+	}
+	f.Tokens[record.TokenHash] = record
+	return nil
+}
+
+func (f *FakeRefreshTokenRepository) FindByHash(ctx context.Context, hash string) (*entity.RefreshToken, error) {
+	if f.Err != nil {
+		return nil, f.Err
+	}
+	record, ok := f.Tokens[hash]
+	if !ok || record.Revoked || time.Now().After(record.ExpiresAt) {
+		return nil, repository.ErrNotFound
+	}
+	return record, nil
+}
+
+func (f *FakeRefreshTokenRepository) DeleteByHash(ctx context.Context, hash string) error {
+	if f.Err != nil {
+		return f.Err
+	}
+	if _, ok := f.Tokens[hash]; !ok {
+		return repository.ErrNotFound
+	}
+	delete(f.Tokens, hash)
+	return nil
+}
+
+func (f *FakeRefreshTokenRepository) DeleteByUserID(ctx context.Context, userID string) error {
+	if f.Err != nil {
+		return f.Err
+	}
+	for hash, record := range f.Tokens {
+		if record.UserID == userID {
+			delete(f.Tokens, hash)
+		}
+	}
+	return nil
+}
+
+// FakeRevokedTokenRepository is an in-memory RevokedTokenRepository.
+// Entries past their expiry are ignored, mirroring the Mongo TTL index.
+type FakeRevokedTokenRepository struct {
+	JTIs map[string]time.Time // jti -> expiry of the blacklisted JWT
+	Err  error                // returned by every operation when set
+}
+
+func NewFakeRevokedTokenRepository() *FakeRevokedTokenRepository {
+	return &FakeRevokedTokenRepository{JTIs: make(map[string]time.Time)}
+}
+
+func (f *FakeRevokedTokenRepository) Create(ctx context.Context, record *entity.RevokedToken) error {
+	if f.Err != nil {
+		return f.Err
+	}
+	f.JTIs[record.JTI] = record.ExpiresAt
+	return nil
+}
+
+func (f *FakeRevokedTokenRepository) Exists(ctx context.Context, jti string) (bool, error) {
+	if f.Err != nil {
+		return false, f.Err
+	}
+	expiresAt, ok := f.JTIs[jti]
+	if !ok || time.Now().After(expiresAt) {
+		return false, nil
+	}
+	return true, nil
+}
+
 // UpsertGoogleUser mirrors the OAuth callback semantics: refresh the
 // profile of an existing user or create one with the default role.
 func (f *FakeUserRepository) UpsertGoogleUser(ctx context.Context, user *entity.User) error {

@@ -53,6 +53,35 @@ func Connect() (*mongo.Client, error) {
 		fmt.Printf("Warning: failed to create bookings index: %v\n", err)
 	}
 
+	// TTL indexes for session collections: refresh_tokens expire 30 days
+	// after issue and revoked_tokens (jti blacklist) expire with the JWT
+	// they belong to. CreateOne is idempotent; failures are warned about
+	// but do not block startup.
+	sessionIndexes := []struct {
+		collection string
+		model      mongo.IndexModel
+	}{
+		{
+			collection: "refresh_tokens",
+			model: mongo.IndexModel{
+				Keys:    bson.D{{Key: "expiresAt", Value: 1}},
+				Options: options.Index().SetName("refresh_tokens_expiresAt_ttl").SetExpireAfterSeconds(0),
+			},
+		},
+		{
+			collection: "revoked_tokens",
+			model: mongo.IndexModel{
+				Keys:    bson.D{{Key: "expiresAt", Value: 1}},
+				Options: options.Index().SetName("revoked_tokens_expiresAt_ttl").SetExpireAfterSeconds(0),
+			},
+		},
+	}
+	for _, idx := range sessionIndexes {
+		if _, err := client.Database(DBName).Collection(idx.collection).Indexes().CreateOne(ctx, idx.model); err != nil {
+			fmt.Printf("Warning: failed to create %s TTL index: %v\n", idx.collection, err)
+		}
+	}
+
 	fmt.Println("Connected to MongoDB!")
 	return client, nil
 }

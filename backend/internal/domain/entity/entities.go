@@ -43,6 +43,25 @@ type Booking struct {
 	UpdatedAt     time.Time     `json:"updatedAt"`
 }
 
+// RefreshToken is a rotated session credential. Only the SHA-256 hash
+// of the token is persisted; the raw value is shown to the client once.
+type RefreshToken struct {
+	ID        string    `json:"id"`
+	UserID    string    `json:"userId"`
+	TokenHash string    `json:"tokenHash"`
+	ExpiresAt time.Time `json:"expiresAt"`
+	CreatedAt time.Time `json:"createdAt"`
+	Revoked   bool      `json:"revoked"`
+}
+
+// RevokedToken is a blacklisted JWT identifier (jti) kept until the
+// token it belongs to expires naturally.
+type RevokedToken struct {
+	ID        string    `json:"id"`
+	JTI       string    `json:"jti"`
+	ExpiresAt time.Time `json:"expiresAt"`
+}
+
 type User struct {
 	ID        string    `json:"id"`
 	GoogleID  string    `json:"googleId"`
