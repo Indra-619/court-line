@@ -1,3 +1,6 @@
+// Package models defines the MongoDB/BSON persistence structs (wire format)
+// stored in the booklapangan database. Domain structs live in
+// internal/domain/entity and are mapped by the repository implementations.
 package models
 
 import (

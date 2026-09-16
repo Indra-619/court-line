@@ -13,14 +13,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo/options"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
-	"github.com/Indra-619/court-line/backend/internal/database"
-	"github.com/Indra-619/court-line/backend/internal/models"
+	"github.com/Indra-619/court-line/backend/internal/domain/entity"
+	"github.com/Indra-619/court-line/backend/internal/domain/repository"
 	"github.com/Indra-619/court-line/backend/pkg/config"
 )
 
@@ -61,6 +59,17 @@ func init() {
 	}
 }
 
+// AuthHandler serves the /auth endpoints on top of an injected user
+// repository; it never touches the database driver directly.
+type AuthHandler struct {
+	users repository.UserRepository
+}
+
+// NewAuthHandler builds an AuthHandler backed by the given repository.
+func NewAuthHandler(users repository.UserRepository) *AuthHandler {
+	return &AuthHandler{users: users}
+}
+
 // GoogleUserInfo represents the user info from Google
 type GoogleUserInfo struct {
 	ID            string `json:"id"`
@@ -71,7 +80,7 @@ type GoogleUserInfo struct {
 }
 
 // GoogleLogin redirects to Google OAuth
-func GoogleLogin(c *gin.Context) {
+func (h *AuthHandler) GoogleLogin(c *gin.Context) {
 	state, err := generateState()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate state"})
@@ -85,7 +94,7 @@ func GoogleLogin(c *gin.Context) {
 }
 
 // GoogleCallback handles the OAuth callback
-func GoogleCallback(c *gin.Context) {
+func (h *AuthHandler) GoogleCallback(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
@@ -129,39 +138,27 @@ func GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	// Upsert user in database
-	collection := database.Client.Database("booklapangan").Collection("users")
-	filter := bson.M{"googleId": googleUser.ID}
-	update := bson.M{
-		"$set": bson.M{
-			"email":     googleUser.Email,
-			"name":      googleUser.Name,
-			"picture":   googleUser.Picture,
-			"updatedAt": time.Now(),
-		},
-		"$setOnInsert": bson.M{
-			"googleId":  googleUser.ID,
-			"role":      "user",
-			"createdAt": time.Now(),
-		},
-	}
-	opts := options.Update().SetUpsert(true)
-	_, err = collection.UpdateOne(ctx, filter, update, opts)
-	if err != nil {
+	// Upsert user: refresh profile fields, or insert with the default role
+	if err := h.users.UpsertGoogleUser(ctx, &entity.User{
+		GoogleID: googleUser.ID,
+		Email:    googleUser.Email,
+		Name:     googleUser.Name,
+		Picture:  googleUser.Picture,
+		Role:     "user",
+	}); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save user"})
 		return
 	}
 
 	// Get user from database
-	var user models.User
-	err = collection.FindOne(ctx, filter).Decode(&user)
+	user, err := h.users.FindByGoogleID(ctx, googleUser.ID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get user"})
 		return
 	}
 
 	// Issue a single-use exchange code and redirect to the frontend
-	exchangeCode := createExchangeCode(user.ID.Hex())
+	exchangeCode := createExchangeCode(user.ID)
 	frontendURL := os.Getenv("FRONTEND_URL")
 	if frontendURL == "" {
 		frontendURL = "http://localhost:3000"
@@ -175,7 +172,7 @@ type ExchangeTokenInput struct {
 }
 
 // ExchangeToken trades a one-time exchange code for a JWT
-func ExchangeToken(c *gin.Context) {
+func (h *AuthHandler) ExchangeToken(c *gin.Context) {
 	var input ExchangeTokenInput
 	if err := c.ShouldBindJSON(&input); err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired code"})
@@ -198,7 +195,7 @@ func ExchangeToken(c *gin.Context) {
 }
 
 // GetCurrentUser returns the current authenticated user
-func GetCurrentUser(c *gin.Context) {
+func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -210,9 +207,7 @@ func GetCurrentUser(c *gin.Context) {
 
 	userObjID := userID.(primitive.ObjectID)
 
-	collection := database.Client.Database("booklapangan").Collection("users")
-	var user models.User
-	err := collection.FindOne(ctx, bson.M{"_id": userObjID}).Decode(&user)
+	user, err := h.users.FindByID(ctx, userObjID.Hex())
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
@@ -222,7 +217,7 @@ func GetCurrentUser(c *gin.Context) {
 }
 
 // Logout handles user logout
-func Logout(c *gin.Context) {
+func (h *AuthHandler) Logout(c *gin.Context) {
 	// For JWT-based auth, logout is handled client-side by removing the token
 	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
 }

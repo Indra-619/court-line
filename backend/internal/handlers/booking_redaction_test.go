@@ -5,23 +5,24 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Indra-619/court-line/backend/internal/models"
+	"github.com/Indra-619/court-line/backend/internal/domain/entity"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
 func TestToBookingsPublicViewFields(t *testing.T) {
-	bookings := []models.Booking{
+	id := primitive.NewObjectID()
+	bookings := []*entity.Booking{
 		{
-			ID:            primitive.NewObjectID(),
-			CourtID:       primitive.NewObjectID(),
-			UserID:        primitive.NewObjectID(),
+			ID:            id.Hex(),
+			CourtID:       primitive.NewObjectID().Hex(),
+			UserID:        primitive.NewObjectID().Hex(),
 			CustomerName:  "Budi Santoso",
 			CustomerPhone: "081234567890",
 			Date:          "2026-09-20",
 			StartTime:     "18:00",
 			EndTime:       "20:00",
 			TotalPrice:    150000,
-			Status:        models.BookingStatusPending,
+			Status:        entity.BookingStatusPending,
 		},
 	}
 
@@ -34,26 +35,26 @@ func TestToBookingsPublicViewFields(t *testing.T) {
 	if view.Date != "2026-09-20" || view.StartTime != "18:00" || view.EndTime != "20:00" {
 		t.Errorf("public view lost schedule data: %+v", view)
 	}
-	if view.Status != string(models.BookingStatusPending) {
+	if view.Status != string(entity.BookingStatusPending) {
 		t.Errorf("expected status pending, got %s", view.Status)
 	}
-	if view.ID != bookings[0].ID.Hex() {
-		t.Errorf("expected ID %s, got %s", bookings[0].ID.Hex(), view.ID)
+	if view.ID != id.Hex() {
+		t.Errorf("expected ID %s, got %s", id.Hex(), view.ID)
 	}
 }
 
 func TestBookingPublicViewNoPIIInJSON(t *testing.T) {
-	bookings := []models.Booking{
+	bookings := []*entity.Booking{
 		{
-			ID:            primitive.NewObjectID(),
-			UserID:        primitive.NewObjectID(),
+			ID:            primitive.NewObjectID().Hex(),
+			UserID:        primitive.NewObjectID().Hex(),
 			CustomerName:  "Budi Santoso",
 			CustomerPhone: "081234567890",
 			Date:          "2026-09-20",
 			StartTime:     "18:00",
 			EndTime:       "20:00",
 			TotalPrice:    150000,
-			Status:        models.BookingStatusConfirmed,
+			Status:        entity.BookingStatusConfirmed,
 		},
 	}
 

@@ -78,6 +78,7 @@ book-lapangan/
 ## 📚 Documentation
 
 - [**Setup Guide**](docs/SETUP.md) - Detailed instructions for Docker and Manual setup.
+- [**Architecture**](docs/ARCHITECTURE.md) - Backend layering, auth/booking flows, and security controls.
 - [**Testing Guide**](docs/TESTING.md) - How to run manual tests and verify health.
 - [**Contributing Guide**](CONTRIBUTING.md) - Workflow, code style, and PR process.
 
