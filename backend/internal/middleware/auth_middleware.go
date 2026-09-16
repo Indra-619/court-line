@@ -1,15 +1,33 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
+	"github.com/Indra-619/court-line/backend/internal/domain/repository"
 	"github.com/Indra-619/court-line/backend/pkg/config"
 )
+
+// tokenBlacklist reports whether a JWT identifier (jti) has been
+// revoked via logout. It is a package-level variable so unit tests can
+// stub it and SetTokenBlacklist can bind it to the injected revoked
+// token repository at startup. The default treats every token as live
+// so middleware without wiring behaves exactly as before.
+var tokenBlacklist = func(ctx context.Context, jti string) (bool, error) {
+	return false, nil
+}
+
+// SetTokenBlacklist backs the jti revocation check with a
+// RevokedTokenRepository. main calls it once during wiring.
+func SetTokenBlacklist(revoked repository.RevokedTokenRepository) {
+	tokenBlacklist = revoked.Exists
+}
 
 // AuthMiddleware validates JWT tokens
 func AuthMiddleware() gin.HandlerFunc {
@@ -65,6 +83,20 @@ func AuthMiddleware() gin.HandlerFunc {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid user ID format"})
 			c.Abort()
 			return
+		}
+
+		// Reject tokens whose jti was blacklisted by a logout.
+		if jti, ok := claims["jti"].(string); ok && jti != "" {
+			revoked, err := tokenBlacklist(c.Request.Context(), jti)
+			if err == nil && revoked {
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Token revoked"})
+				c.Abort()
+				return
+			}
+			c.Set("jti", jti)
+			if exp, ok := claims["exp"].(float64); ok {
+				c.Set("tokenExp", time.Unix(int64(exp), 0))
+			}
 		}
 
 		// Set user ID in context

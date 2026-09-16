@@ -25,6 +25,7 @@ func authTestRouter(h *AuthHandler, userID primitive.ObjectID) *gin.Engine {
 	r.GET("/me", h.GetCurrentUser)
 	r.POST("/logout", h.Logout)
 	r.POST("/exchange", h.ExchangeToken)
+	r.POST("/refresh", h.RefreshToken)
 	return r
 }
 

@@ -42,6 +42,7 @@ func SetupRouter(deps Deps) *gin.Engine {
 		auth.GET("/google", deps.Auth.GoogleLogin)
 		auth.GET("/google/callback", deps.Auth.GoogleCallback)
 		auth.POST("/exchange", deps.Auth.ExchangeToken)
+		auth.POST("/refresh", deps.Auth.RefreshToken)
 	}
 
 	// Protected auth routes

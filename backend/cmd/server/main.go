@@ -37,6 +37,10 @@ func main() {
 	// Back the admin role check with the injected user repository so
 	// middleware never reaches for a global database handle.
 	middleware.SetUserRoleLookup(userRepo)
+	// Back the jti revocation check with the injected blacklist so
+	// AuthMiddleware rejects tokens invalidated by logout.
+	middleware.SetTokenBlacklist(revokedTokenRepo)
+
 	deps := routes.Deps{
 		Courts:   handlers.NewCourtHandler(courtRepo),
 		Bookings: handlers.NewBookingHandler(bookingRepo, courtRepo),
