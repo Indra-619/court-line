@@ -11,7 +11,7 @@ services:
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
       - GOOGLE_REDIRECT_URL=http://localhost:8080/auth/google/callback
-      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET is required}
       - FRONTEND_URL=http://localhost:3000
     depends_on:
       mongo:
