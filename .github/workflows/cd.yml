@@ -59,7 +59,7 @@ jobs:
             type=sha,format=short
             type=match,pattern=v(.*),group=1
             type=match,pattern=v(.*),group=1,suffix=-sha
-            type=raw,value=latest,enable={{is_tag}}
+            type=raw,value=latest,enable=is_tag
           flavor: |
             latest=auto
           # Bake common provenance/labels into every tag produced.
