@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
-	"github.com/Indra-619/court-line/backend/internal/database"
+	"github.com/Indra-619/court-line/backend/internal/domain/entity"
+	"github.com/Indra-619/court-line/backend/internal/domain/repository"
 	"github.com/Indra-619/court-line/backend/internal/models"
 	"github.com/Indra-619/court-line/backend/pkg/pricing"
 	"github.com/Indra-619/court-line/backend/pkg/validate"
@@ -19,14 +19,41 @@ import (
 // nowFn is injectable for tests.
 var nowFn = time.Now
 
+// BookingHandler serves the booking endpoints on top of injected
+// repositories; it never touches the database driver directly.
+type BookingHandler struct {
+	bookings repository.BookingRepository
+	courts   repository.CourtRepository
+}
+
+// NewBookingHandler builds a BookingHandler. The court repository is
+// needed to resolve the price and existence of the booked court.
+func NewBookingHandler(bookings repository.BookingRepository, courts repository.CourtRepository) *BookingHandler {
+	return &BookingHandler{bookings: bookings, courts: courts}
+}
+
+// userIDHex extracts the authenticated user's ID (set by the auth
+// middleware as a primitive.ObjectID) in hex form.
+func userIDHex(c *gin.Context) (string, bool) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		return "", false
+	}
+	userObjID, ok := userID.(primitive.ObjectID)
+	if !ok {
+		return "", false
+	}
+	return userObjID.Hex(), true
+}
+
 // CreateBooking creates a new booking (requires authentication)
-func CreateBooking(c *gin.Context) {
+func (h *BookingHandler) CreateBooking(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	// Get user ID from context (set by auth middleware)
-	userID, exists := c.Get("userID")
-	if !exists {
+	userID, ok := userIDHex(c)
+	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
@@ -65,17 +92,12 @@ func CreateBooking(c *gin.Context) {
 		return
 	}
 
-	// Validate court ID
-	courtObjID, err := primitive.ObjectIDFromHex(input.CourtID)
-	if err != nil {
+	// Check if court exists (invalid IDs are rejected up front)
+	if _, err := parseHexID(input.CourtID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid court ID"})
 		return
 	}
-
-	// Check if court exists
-	courtCollection := database.Client.Database("booklapangan").Collection("courts")
-	var court models.Court
-	err = courtCollection.FindOne(ctx, bson.M{"_id": courtObjID}).Decode(&court)
+	court, err := h.courts.FindByID(ctx, input.CourtID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Court not found"})
 		return
@@ -93,24 +115,11 @@ func CreateBooking(c *gin.Context) {
 	// court and date. NOTE: this is a check-then-insert with a race window
 	// on a standalone Mongo (no transactions available); accepted for this
 	// project's scale.
-	bookingsCollection := database.Client.Database("booklapangan").Collection("bookings")
-	filter := bson.M{
-		"courtId": courtObjID,
-		"date":    input.Date,
-		"status":  bson.M{"$in": []string{string(models.BookingStatusPending), string(models.BookingStatusConfirmed)}},
-	}
-	cursor, err := bookingsCollection.Find(ctx, filter)
+	existing, err := h.bookings.FindActiveByCourtAndDate(ctx, input.CourtID, input.Date)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check existing bookings"})
 		return
 	}
-	var existing []models.Booking
-	if err := cursor.All(ctx, &existing); err != nil {
-		cursor.Close(ctx)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode existing bookings"})
-		return
-	}
-	cursor.Close(ctx)
 
 	for _, b := range existing {
 		conflicts, err := pricing.Overlaps(input.StartTime, input.EndTime, b.StartTime, b.EndTime)
@@ -130,26 +139,22 @@ func CreateBooking(c *gin.Context) {
 		}
 	}
 
-	userObjID := userID.(primitive.ObjectID)
-
-	booking := models.Booking{
-		ID:            primitive.NewObjectID(),
-		CourtID:       courtObjID,
-		UserID:        userObjID,
+	now := time.Now()
+	booking := &entity.Booking{
+		CourtID:       input.CourtID,
+		UserID:        userID,
 		CustomerName:  input.CustomerName,
 		CustomerPhone: input.CustomerPhone,
 		Date:          input.Date,
 		StartTime:     input.StartTime,
 		EndTime:       input.EndTime,
 		TotalPrice:    totalPrice,
-		Status:        models.BookingStatusPending,
-		CreatedAt:     time.Now(),
-		UpdatedAt:     time.Now(),
+		Status:        entity.BookingStatusPending,
+		CreatedAt:     now,
+		UpdatedAt:     now,
 	}
 
-	collection := database.Client.Database("booklapangan").Collection("bookings")
-	_, err = collection.InsertOne(ctx, booking)
-	if err != nil {
+	if err := h.bookings.Create(ctx, booking); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create booking"})
 		return
 	}
@@ -158,34 +163,24 @@ func CreateBooking(c *gin.Context) {
 }
 
 // GetBookings returns bookings for the authenticated user
-func GetBookings(c *gin.Context) {
+func (h *BookingHandler) GetBookings(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	userID, exists := c.Get("userID")
-	if !exists {
+	userID, ok := userIDHex(c)
+	if !ok {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	userObjID := userID.(primitive.ObjectID)
-
-	collection := database.Client.Database("booklapangan").Collection("bookings")
-	cursor, err := collection.Find(ctx, bson.M{"userId": userObjID})
+	bookings, err := h.bookings.FindByUserID(ctx, userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bookings"})
 		return
 	}
-	defer cursor.Close(ctx)
-
-	var bookings []models.Booking
-	if err := cursor.All(ctx, &bookings); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode bookings"})
-		return
-	}
 
 	if bookings == nil {
-		bookings = []models.Booking{}
+		bookings = []*entity.Booking{}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": bookings})
@@ -202,7 +197,7 @@ type BookingPublicView struct {
 }
 
 // toBookingsPublicView strips customer PII from bookings.
-func toBookingsPublicView(bookings []models.Booking) []BookingPublicView {
+func toBookingsPublicView(bookings []*entity.Booking) []BookingPublicView {
 	views := make([]BookingPublicView, 0, len(bookings))
 	for _, b := range bookings {
 		views = append(views, BookingPublicView{
@@ -210,35 +205,26 @@ func toBookingsPublicView(bookings []models.Booking) []BookingPublicView {
 			StartTime: b.StartTime,
 			EndTime:   b.EndTime,
 			Status:    string(b.Status),
-			ID:        b.ID.Hex(),
+			ID:        b.ID,
 		})
 	}
 	return views
 }
 
 // GetBookingsByCourtID returns all bookings for a specific court
-func GetBookingsByCourtID(c *gin.Context) {
+func (h *BookingHandler) GetBookingsByCourtID(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	courtIDParam := c.Param("id")
-	courtObjID, err := primitive.ObjectIDFromHex(courtIDParam)
-	if err != nil {
+	if _, err := parseHexID(courtIDParam); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid court ID"})
 		return
 	}
 
-	collection := database.Client.Database("booklapangan").Collection("bookings")
-	cursor, err := collection.Find(ctx, bson.M{"courtId": courtObjID})
+	bookings, err := h.bookings.FindByCourtID(ctx, courtIDParam)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch bookings"})
-		return
-	}
-	defer cursor.Close(ctx)
-
-	var bookings []models.Booking
-	if err := cursor.All(ctx, &bookings); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode bookings"})
 		return
 	}
 

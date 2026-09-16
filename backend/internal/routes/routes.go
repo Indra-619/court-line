@@ -12,7 +12,8 @@ import (
 // repositories. Routes only reference these; nothing reaches for a
 // global database handle.
 type Deps struct {
-	Courts *handlers.CourtHandler
+	Courts   *handlers.CourtHandler
+	Bookings *handlers.BookingHandler
 }
 
 // SetupRouter configures all routes
@@ -56,7 +57,7 @@ func SetupRouter(deps Deps) *gin.Engine {
 		// Courts - public read, protected write
 		api.GET("/courts", deps.Courts.GetCourts)
 		api.GET("/courts/:id", deps.Courts.GetCourtByID)
-		api.GET("/courts/:id/bookings", handlers.GetBookingsByCourtID)
+		api.GET("/courts/:id/bookings", deps.Bookings.GetBookingsByCourtID)
 
 		// Protected court routes (admin only)
 		courtsProtected := api.Group("/courts")
@@ -71,8 +72,8 @@ func SetupRouter(deps Deps) *gin.Engine {
 		bookings := api.Group("/bookings")
 		bookings.Use(middleware.AuthMiddleware())
 		{
-			bookings.POST("", handlers.CreateBooking)
-			bookings.GET("", handlers.GetBookings)
+			bookings.POST("", deps.Bookings.CreateBooking)
+			bookings.GET("", deps.Bookings.GetBookings)
 		}
 	}
 

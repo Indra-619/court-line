@@ -28,9 +28,11 @@ func main() {
 
 	// Wire repositories into handlers
 	courtRepo := infrastructure.NewMongoCourtRepository(client, database.DBName)
+	bookingRepo := infrastructure.NewMongoBookingRepository(client, database.DBName)
 
 	deps := routes.Deps{
-		Courts: handlers.NewCourtHandler(courtRepo),
+		Courts:   handlers.NewCourtHandler(courtRepo),
+		Bookings: handlers.NewBookingHandler(bookingRepo, courtRepo),
 	}
 
 	// Setup router
