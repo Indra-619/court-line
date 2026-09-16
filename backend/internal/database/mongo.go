@@ -1,3 +1,6 @@
+// Package database owns the MongoDB connection lifecycle. Handlers and
+// middleware no longer reach into this package; main wires the returned
+// client into the infrastructure repositories.
 package database
 
 import (
@@ -6,16 +9,22 @@ import (
 	"os"
 	"time"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-var Client *mongo.Client
+// DBName is the MongoDB database used by the application.
+const DBName = "booklapangan"
 
-func Connect() error {
+// Connect dials MongoDB, verifies it with a ping, ensures the bookings
+// compound index exists, and returns the ready client. Index creation
+// is idempotent; failures are warned about but do not block startup
+// (standalone dev Mongo).
+func Connect() (*mongo.Client, error) {
 	uri := os.Getenv("MONGODB_URI")
 	if uri == "" {
-		return fmt.Errorf("MONGODB_URI environment variable not set")
+		return nil, fmt.Errorf("MONGODB_URI environment variable not set")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -24,15 +33,26 @@ func Connect() error {
 	clientOptions := options.Client().ApplyURI(uri)
 	client, err := mongo.Connect(ctx, clientOptions)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Ping the database
 	if err := client.Ping(ctx, nil); err != nil {
-		return err
+		return nil, err
 	}
 
-	Client = client
+	// Ensure a compound index on bookings for the double-booking lookup
+	// (courtId + date). CreateOne is idempotent; failures are logged but
+	// do not block startup (standalone dev Mongo).
+	indexModel := mongo.IndexModel{
+		Keys:    bson.D{{Key: "courtId", Value: 1}, {Key: "date", Value: 1}},
+		Options: options.Index().SetName("courtId_date"),
+	}
+	_, err = client.Database(DBName).Collection("bookings").Indexes().CreateOne(ctx, indexModel)
+	if err != nil {
+		fmt.Printf("Warning: failed to create bookings index: %v\n", err)
+	}
+
 	fmt.Println("Connected to MongoDB!")
-	return nil
+	return client, nil
 }

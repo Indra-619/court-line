@@ -2,60 +2,58 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 
-	"github.com/your-username/book-lapangan/backend/internal/database"
-	"github.com/your-username/book-lapangan/backend/internal/models"
+	"github.com/Indra-619/court-line/backend/internal/domain/entity"
+	"github.com/Indra-619/court-line/backend/internal/domain/repository"
+	"github.com/Indra-619/court-line/backend/internal/models"
 )
 
+// CourtHandler serves the /api/courts endpoints on top of an injected
+// repository; it never touches the database driver directly.
+type CourtHandler struct {
+	repo repository.CourtRepository
+}
+
+// NewCourtHandler builds a CourtHandler backed by the given repository.
+func NewCourtHandler(repo repository.CourtRepository) *CourtHandler {
+	return &CourtHandler{repo: repo}
+}
+
 // GetCourts returns all courts
-func GetCourts(c *gin.Context) {
+func (h *CourtHandler) GetCourts(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	collection := database.Client.Database("booklapangan").Collection("courts")
-
-	cursor, err := collection.Find(ctx, bson.M{})
+	courts, err := h.repo.FindAll(ctx)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch courts"})
 		return
 	}
-	defer cursor.Close(ctx)
-
-	var courts []models.Court
-	if err := cursor.All(ctx, &courts); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode courts"})
-		return
-	}
 
 	if courts == nil {
-		courts = []models.Court{}
+		courts = []*entity.Court{}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"data": courts})
 }
 
 // GetCourtByID returns a single court by ID
-func GetCourtByID(c *gin.Context) {
+func (h *CourtHandler) GetCourtByID(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	idParam := c.Param("id")
-	objID, err := primitive.ObjectIDFromHex(idParam)
-	if err != nil {
+	if _, err := parseHexID(idParam); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid court ID"})
 		return
 	}
 
-	collection := database.Client.Database("booklapangan").Collection("courts")
-
-	var court models.Court
-	err = collection.FindOne(ctx, bson.M{"_id": objID}).Decode(&court)
+	court, err := h.repo.FindByID(ctx, idParam)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Court not found"})
 		return
@@ -65,7 +63,7 @@ func GetCourtByID(c *gin.Context) {
 }
 
 // CreateCourt creates a new court
-func CreateCourt(c *gin.Context) {
+func (h *CourtHandler) CreateCourt(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -75,8 +73,7 @@ func CreateCourt(c *gin.Context) {
 		return
 	}
 
-	court := models.Court{
-		ID:           primitive.NewObjectID(),
+	court := &entity.Court{
 		Name:         input.Name,
 		Type:         input.Type,
 		Location:     input.Location,
@@ -87,9 +84,7 @@ func CreateCourt(c *gin.Context) {
 		IsAvailable:  true,
 	}
 
-	collection := database.Client.Database("booklapangan").Collection("courts")
-	_, err := collection.InsertOne(ctx, court)
-	if err != nil {
+	if err := h.repo.Create(ctx, court); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create court"})
 		return
 	}
@@ -98,13 +93,12 @@ func CreateCourt(c *gin.Context) {
 }
 
 // UpdateCourt updates an existing court
-func UpdateCourt(c *gin.Context) {
+func (h *CourtHandler) UpdateCourt(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	idParam := c.Param("id")
-	objID, err := primitive.ObjectIDFromHex(idParam)
-	if err != nil {
+	if _, err := parseHexID(idParam); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid court ID"})
 		return
 	}
@@ -115,28 +109,23 @@ func UpdateCourt(c *gin.Context) {
 		return
 	}
 
-	collection := database.Client.Database("booklapangan").Collection("courts")
-
-	update := bson.M{
-		"$set": bson.M{
-			"name":         input.Name,
-			"type":         input.Type,
-			"location":     input.Location,
-			"description":  input.Description,
-			"pricePerHour": input.PricePerHour,
-			"imageUrl":     input.ImageURL,
-			"facilities":   input.Facilities,
-		},
+	court := &entity.Court{
+		ID:           idParam,
+		Name:         input.Name,
+		Type:         input.Type,
+		Location:     input.Location,
+		Description:  input.Description,
+		PricePerHour: input.PricePerHour,
+		ImageURL:     input.ImageURL,
+		Facilities:   input.Facilities,
 	}
 
-	result, err := collection.UpdateOne(ctx, bson.M{"_id": objID}, update)
-	if err != nil {
+	if err := h.repo.Update(ctx, court); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Court not found"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update court"})
-		return
-	}
-
-	if result.MatchedCount == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Court not found"})
 		return
 	}
 
@@ -144,26 +133,22 @@ func UpdateCourt(c *gin.Context) {
 }
 
 // DeleteCourt deletes a court
-func DeleteCourt(c *gin.Context) {
+func (h *CourtHandler) DeleteCourt(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	idParam := c.Param("id")
-	objID, err := primitive.ObjectIDFromHex(idParam)
-	if err != nil {
+	if _, err := parseHexID(idParam); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid court ID"})
 		return
 	}
 
-	collection := database.Client.Database("booklapangan").Collection("courts")
-	result, err := collection.DeleteOne(ctx, bson.M{"_id": objID})
-	if err != nil {
+	if err := h.repo.Delete(ctx, idParam); err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Court not found"})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete court"})
-		return
-	}
-
-	if result.DeletedCount == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Court not found"})
 		return
 	}
 

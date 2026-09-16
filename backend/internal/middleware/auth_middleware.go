@@ -8,7 +8,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 
-	"github.com/your-username/book-lapangan/backend/pkg/config"
+	"github.com/Indra-619/court-line/backend/pkg/config"
 )
 
 // AuthMiddleware validates JWT tokens

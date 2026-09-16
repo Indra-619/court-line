@@ -1,7 +1,7 @@
 # 🏟️ Book Lapangan Online (CourtLine)
 
 ![Project Status](https://img.shields.io/badge/status-active-success.svg)
-![Build Status](https://img.shields.io/badge/build-safe-green.svg)
+[![CI](https://github.com/Indra-619/court-line/actions/workflows/ci.yml/badge.svg)](https://github.com/Indra-619/court-line/actions/workflows/ci.yml)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 A modern fullstack application for booking sports venues online, featuring Google OAuth authentication, real-time availability, and a beautiful dark-themed UI.
@@ -78,6 +78,7 @@ book-lapangan/
 ## 📚 Documentation
 
 - [**Setup Guide**](docs/SETUP.md) - Detailed instructions for Docker and Manual setup.
+- [**Architecture**](docs/ARCHITECTURE.md) - Backend layering, auth/booking flows, and security controls.
 - [**Testing Guide**](docs/TESTING.md) - How to run manual tests and verify health.
 - [**Contributing Guide**](CONTRIBUTING.md) - Workflow, code style, and PR process.
 

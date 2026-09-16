@@ -4,9 +4,12 @@ import (
 	"log"
 	"os"
 
-	"github.com/your-username/book-lapangan/backend/internal/database"
-	"github.com/your-username/book-lapangan/backend/internal/routes"
-	"github.com/your-username/book-lapangan/backend/pkg/config"
+	"github.com/Indra-619/court-line/backend/internal/database"
+	"github.com/Indra-619/court-line/backend/internal/handlers"
+	"github.com/Indra-619/court-line/backend/internal/infrastructure"
+	"github.com/Indra-619/court-line/backend/internal/middleware"
+	"github.com/Indra-619/court-line/backend/internal/routes"
+	"github.com/Indra-619/court-line/backend/pkg/config"
 )
 
 func main() {
@@ -19,12 +22,28 @@ func main() {
 	config.MustLoad()
 
 	// Connect to MongoDB
-	if err := database.Connect(); err != nil {
+	client, err := database.Connect()
+	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
+	// Wire repositories into handlers
+	courtRepo := infrastructure.NewMongoCourtRepository(client, database.DBName)
+	bookingRepo := infrastructure.NewMongoBookingRepository(client, database.DBName)
+	userRepo := infrastructure.NewMongoUserRepository(client, database.DBName)
+
+	// Back the admin role check with the injected user repository so
+	// middleware never reaches for a global database handle.
+	middleware.SetUserRoleLookup(userRepo)
+
+	deps := routes.Deps{
+		Courts:   handlers.NewCourtHandler(courtRepo),
+		Bookings: handlers.NewBookingHandler(bookingRepo, courtRepo),
+		Auth:     handlers.NewAuthHandler(userRepo),
+	}
+
 	// Setup router
-	router := routes.SetupRouter()
+	router := routes.SetupRouter(deps)
 
 	log.Printf("Server starting on port %s", port)
 	if err := router.Run(":" + port); err != nil {
