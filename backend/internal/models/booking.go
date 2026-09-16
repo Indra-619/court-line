@@ -16,7 +16,8 @@ const (
 	BookingStatusCompleted BookingStatus = "completed"
 )
 
-// Booking represents a court booking
+// Booking is the BSON persistence struct for the bookings collection; the
+// corresponding domain struct is entity.Booking in internal/domain/entity.
 type Booking struct {
 	ID            primitive.ObjectID `bson:"_id,omitempty" json:"id"`
 	CourtID       primitive.ObjectID `bson:"courtId" json:"courtId"`
