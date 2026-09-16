@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -87,6 +88,47 @@ func CreateBooking(c *gin.Context) {
 		return
 	}
 	totalPrice := hours * court.PricePerHour
+
+	// Prevent double-booking: check existing active bookings for the same
+	// court and date. NOTE: this is a check-then-insert with a race window
+	// on a standalone Mongo (no transactions available); accepted for this
+	// project's scale.
+	bookingsCollection := database.Client.Database("booklapangan").Collection("bookings")
+	filter := bson.M{
+		"courtId": courtObjID,
+		"date":    input.Date,
+		"status":  bson.M{"$in": []string{string(models.BookingStatusPending), string(models.BookingStatusConfirmed)}},
+	}
+	cursor, err := bookingsCollection.Find(ctx, filter)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to check existing bookings"})
+		return
+	}
+	var existing []models.Booking
+	if err := cursor.All(ctx, &existing); err != nil {
+		cursor.Close(ctx)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to decode existing bookings"})
+		return
+	}
+	cursor.Close(ctx)
+
+	for _, b := range existing {
+		conflicts, err := pricing.Overlaps(input.StartTime, input.EndTime, b.StartTime, b.EndTime)
+		if err != nil {
+			// Skip bookings with malformed stored times rather than failing.
+			continue
+		}
+		if conflicts {
+			c.JSON(http.StatusConflict, gin.H{
+				"error": fmt.Sprintf("Time slot conflicts with an existing booking (%s-%s)", b.StartTime, b.EndTime),
+				"conflict": gin.H{
+					"startTime": b.StartTime,
+					"endTime":   b.EndTime,
+				},
+			})
+			return
+		}
+	}
 
 	userObjID := userID.(primitive.ObjectID)
 
