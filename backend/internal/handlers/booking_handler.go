@@ -3,8 +3,6 @@ package handlers
 import (
 	"context"
 	"net/http"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -13,6 +11,7 @@ import (
 
 	"github.com/your-username/book-lapangan/backend/internal/database"
 	"github.com/your-username/book-lapangan/backend/internal/models"
+	"github.com/your-username/book-lapangan/backend/pkg/pricing"
 	"github.com/your-username/book-lapangan/backend/pkg/validate"
 )
 
@@ -81,12 +80,12 @@ func CreateBooking(c *gin.Context) {
 		return
 	}
 
-	// Calculate total price
-	startParts := strings.Split(input.StartTime, ":")
-	endParts := strings.Split(input.EndTime, ":")
-	startHour, _ := strconv.Atoi(startParts[0])
-	endHour, _ := strconv.Atoi(endParts[0])
-	hours := float64(endHour - startHour)
+	// Calculate total price from exact minute-based duration
+	hours, err := pricing.CalculateHours(input.StartTime, input.EndTime)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 	totalPrice := hours * court.PricePerHour
 
 	userObjID := userID.(primitive.ObjectID)
