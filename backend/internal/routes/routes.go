@@ -50,9 +50,9 @@ func SetupRouter() *gin.Engine {
 		api.GET("/courts/:id", handlers.GetCourtByID)
 		api.GET("/courts/:id/bookings", handlers.GetBookingsByCourtID)
 
-		// Protected court routes
+		// Protected court routes (admin only)
 		courtsProtected := api.Group("/courts")
-		courtsProtected.Use(middleware.AuthMiddleware())
+		courtsProtected.Use(middleware.AuthMiddleware(), middleware.AdminMiddleware())
 		{
 			courtsProtected.POST("", handlers.CreateCourt)
 			courtsProtected.PUT("/:id", handlers.UpdateCourt)

@@ -141,6 +141,7 @@ func GoogleCallback(c *gin.Context) {
 		},
 		"$setOnInsert": bson.M{
 			"googleId":  googleUser.ID,
+			"role":      "user",
 			"createdAt": time.Now(),
 		},
 	}

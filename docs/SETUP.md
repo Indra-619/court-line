@@ -100,3 +100,17 @@ npm run dev
 
 - **🚧 Port Conflicts**: Check if ports `3000`, `8080`, or `27017` are already in use.
 - **🔌 Database Connection**: Ensure `MONGODB_URI` is correct if running manually.
+
+---
+
+## 👤 Admin user
+
+Court management endpoints (`POST`/`PUT`/`DELETE /api/courts`) require the `admin` role. New users are created with the `user` role on first Google sign-in.
+
+To promote a user to admin, sign in once with their Google account, then run:
+
+```bash
+./scripts/seed_admin.sh user@example.com
+```
+
+This requires `mongosh` and a running MongoDB at `mongodb://localhost:27017/booklapangan`.
