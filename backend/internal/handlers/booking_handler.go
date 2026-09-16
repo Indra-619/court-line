@@ -118,6 +118,31 @@ func GetBookings(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": bookings})
 }
 
+// BookingPublicView exposes only non-sensitive booking fields to
+// unauthenticated users browsing a court's schedule.
+type BookingPublicView struct {
+	Date      string `json:"date"`
+	StartTime string `json:"startTime"`
+	EndTime   string `json:"endTime"`
+	Status    string `json:"status"`
+	ID        string `json:"id"`
+}
+
+// toBookingsPublicView strips customer PII from bookings.
+func toBookingsPublicView(bookings []models.Booking) []BookingPublicView {
+	views := make([]BookingPublicView, 0, len(bookings))
+	for _, b := range bookings {
+		views = append(views, BookingPublicView{
+			Date:      b.Date,
+			StartTime: b.StartTime,
+			EndTime:   b.EndTime,
+			Status:    string(b.Status),
+			ID:        b.ID.Hex(),
+		})
+	}
+	return views
+}
+
 // GetBookingsByCourtID returns all bookings for a specific court
 func GetBookingsByCourtID(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -144,9 +169,5 @@ func GetBookingsByCourtID(c *gin.Context) {
 		return
 	}
 
-	if bookings == nil {
-		bookings = []models.Booking{}
-	}
-
-	c.JSON(http.StatusOK, gin.H{"data": bookings})
+	c.JSON(http.StatusOK, gin.H{"data": toBookingsPublicView(bookings)})
 }
