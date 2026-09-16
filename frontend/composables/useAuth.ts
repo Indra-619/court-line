@@ -1,6 +1,17 @@
 // Auth composable for managing authentication state
+export interface User {
+    id: string
+    googleId?: string
+    email: string
+    name: string
+    picture?: string
+    role?: string
+    createdAt?: string
+    updatedAt?: string
+}
+
 export const useAuth = () => {
-    const user = useState<any>('user', () => null)
+    const user = useState<User | null>('user', () => null)
     const token = useState<string>('token', () => '')
     const isLoggedIn = computed(() => !!token.value && !!user.value)
 
@@ -31,7 +42,7 @@ export const useAuth = () => {
         if (!token.value) return
 
         try {
-            const data = await $fetch<{ data: any }>(`${config.public.apiBase}/auth/me`, {
+            const data = await $fetch<{ data: User }>(`${config.public.apiBase}/auth/me`, {
                 headers: {
                     Authorization: `Bearer ${token.value}`
                 }
