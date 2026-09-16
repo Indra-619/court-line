@@ -7,6 +7,7 @@ import (
 	"github.com/Indra-619/court-line/backend/internal/database"
 	"github.com/Indra-619/court-line/backend/internal/handlers"
 	"github.com/Indra-619/court-line/backend/internal/infrastructure"
+	"github.com/Indra-619/court-line/backend/internal/middleware"
 	"github.com/Indra-619/court-line/backend/internal/routes"
 	"github.com/Indra-619/court-line/backend/pkg/config"
 )
@@ -29,10 +30,16 @@ func main() {
 	// Wire repositories into handlers
 	courtRepo := infrastructure.NewMongoCourtRepository(client, database.DBName)
 	bookingRepo := infrastructure.NewMongoBookingRepository(client, database.DBName)
+	userRepo := infrastructure.NewMongoUserRepository(client, database.DBName)
+
+	// Back the admin role check with the injected user repository so
+	// middleware never reaches for a global database handle.
+	middleware.SetUserRoleLookup(userRepo)
 
 	deps := routes.Deps{
 		Courts:   handlers.NewCourtHandler(courtRepo),
 		Bookings: handlers.NewBookingHandler(bookingRepo, courtRepo),
+		Auth:     handlers.NewAuthHandler(userRepo),
 	}
 
 	// Setup router

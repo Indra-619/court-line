@@ -17,16 +17,10 @@ import (
 // DBName is the MongoDB database used by the application.
 const DBName = "booklapangan"
 
-// Client is the process-wide MongoDB client. It exists only until the
-// remaining handlers migrate to injected repositories; new code must
-// not reference it.
-var Client *mongo.Client
-
 // Connect dials MongoDB, verifies it with a ping, ensures the bookings
-// compound index exists, and returns the ready client. It also assigns
-// Client for code not yet migrated. Index creation is idempotent;
-// failures are warned about but do not block startup (standalone dev
-// Mongo).
+// compound index exists, and returns the ready client. Index creation
+// is idempotent; failures are warned about but do not block startup
+// (standalone dev Mongo).
 func Connect() (*mongo.Client, error) {
 	uri := os.Getenv("MONGODB_URI")
 	if uri == "" {
@@ -60,6 +54,5 @@ func Connect() (*mongo.Client, error) {
 	}
 
 	fmt.Println("Connected to MongoDB!")
-	Client = client
 	return client, nil
 }

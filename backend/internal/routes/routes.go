@@ -14,6 +14,7 @@ import (
 type Deps struct {
 	Courts   *handlers.CourtHandler
 	Bookings *handlers.BookingHandler
+	Auth     *handlers.AuthHandler
 }
 
 // SetupRouter configures all routes
@@ -38,17 +39,17 @@ func SetupRouter(deps Deps) *gin.Engine {
 	// Auth routes (public)
 	auth := r.Group("/auth")
 	{
-		auth.GET("/google", handlers.GoogleLogin)
-		auth.GET("/google/callback", handlers.GoogleCallback)
-		auth.POST("/exchange", handlers.ExchangeToken)
+		auth.GET("/google", deps.Auth.GoogleLogin)
+		auth.GET("/google/callback", deps.Auth.GoogleCallback)
+		auth.POST("/exchange", deps.Auth.ExchangeToken)
 	}
 
 	// Protected auth routes
 	authProtected := r.Group("/auth")
 	authProtected.Use(middleware.AuthMiddleware())
 	{
-		authProtected.GET("/me", handlers.GetCurrentUser)
-		authProtected.POST("/logout", handlers.Logout)
+		authProtected.GET("/me", deps.Auth.GetCurrentUser)
+		authProtected.POST("/logout", deps.Auth.Logout)
 	}
 
 	// API routes
