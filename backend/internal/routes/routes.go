@@ -8,8 +8,15 @@ import (
 	"github.com/Indra-619/court-line/backend/internal/middleware"
 )
 
+// Deps carries the handler structs wired by main with their
+// repositories. Routes only reference these; nothing reaches for a
+// global database handle.
+type Deps struct {
+	Courts *handlers.CourtHandler
+}
+
 // SetupRouter configures all routes
-func SetupRouter() *gin.Engine {
+func SetupRouter(deps Deps) *gin.Engine {
 	r := gin.Default()
 
 	// CORS configuration
@@ -47,17 +54,17 @@ func SetupRouter() *gin.Engine {
 	api := r.Group("/api")
 	{
 		// Courts - public read, protected write
-		api.GET("/courts", handlers.GetCourts)
-		api.GET("/courts/:id", handlers.GetCourtByID)
+		api.GET("/courts", deps.Courts.GetCourts)
+		api.GET("/courts/:id", deps.Courts.GetCourtByID)
 		api.GET("/courts/:id/bookings", handlers.GetBookingsByCourtID)
 
 		// Protected court routes (admin only)
 		courtsProtected := api.Group("/courts")
 		courtsProtected.Use(middleware.AuthMiddleware(), middleware.AdminMiddleware())
 		{
-			courtsProtected.POST("", handlers.CreateCourt)
-			courtsProtected.PUT("/:id", handlers.UpdateCourt)
-			courtsProtected.DELETE("/:id", handlers.DeleteCourt)
+			courtsProtected.POST("", deps.Courts.CreateCourt)
+			courtsProtected.PUT("/:id", deps.Courts.UpdateCourt)
+			courtsProtected.DELETE("/:id", deps.Courts.DeleteCourt)
 		}
 
 		// Bookings - all protected

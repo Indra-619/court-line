@@ -4,11 +4,16 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/Indra-619/court-line/backend/internal/handlers"
+	"github.com/Indra-619/court-line/backend/internal/testutil"
 )
 
 func TestHealthRoute(t *testing.T) {
-	// Setup router
-	r := SetupRouter()
+	// Setup router with an in-memory court repository
+	r := SetupRouter(Deps{
+		Courts: handlers.NewCourtHandler(testutil.NewFakeCourtRepository()),
+	})
 
 	// Create a response recorder
 	w := httptest.NewRecorder()
