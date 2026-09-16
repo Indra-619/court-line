@@ -24,6 +24,14 @@ const isUnauthorized = (error: unknown): boolean => {
     return status === 401
 }
 
+// FetchOptions from ofetch types `method` as a plain string, which is not
+// assignable to $fetch's narrowed method union. Narrow it here so callers
+// keep full type safety without unsafe casts.
+type HttpMethod =
+    | 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS'
+    | 'get' | 'post' | 'put' | 'delete' | 'patch' | 'head' | 'options'
+type AuthFetchOptions = Omit<FetchOptions, 'method'> & { method?: HttpMethod }
+
 export const useAuth = () => {
     const user = useState<User | null>('user', () => null)
     const token = useState<string>('token', () => '')
@@ -95,7 +103,7 @@ export const useAuth = () => {
 
     // Authenticated fetch: injects the Authorization header and retries once
     // with a refreshed session on 401
-    const authFetch = async <T>(url: string, opts: FetchOptions = {}): Promise<T> => {
+    const authFetch = async <T>(url: string, opts: AuthFetchOptions = {}): Promise<T> => {
         const request = (currentToken: string): Promise<T> =>
             $fetch<T>(url, {
                 ...opts,
