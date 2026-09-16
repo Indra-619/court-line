@@ -64,7 +64,7 @@ curl -I http://localhost:8080/health
 **Manual Data Verification:**
 You can inspect the MongoDB container directly:
 ```bash
-docker exec -it book-lapangan-mongo-1 mongosh booklapangan
+docker exec -it court-line-mongo-1 mongosh booklapangan
 ```
 
 ---

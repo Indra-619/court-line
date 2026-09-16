@@ -34,7 +34,7 @@ Write-Host "Verifying Infrastructure (Docker)..." -ForegroundColor Yellow
 Set-Location "$PSScriptRoot\.."
 
 Write-Host "   Checking Docker Compose Config..." -NoNewline
-$composeCheck = docker-compose config -q 2>&1
+$composeCheck = docker compose config -q 2>&1
 if ($LASTEXITCODE -ne 0) {
     Write-Host " FAILED" -ForegroundColor Red
     Write-Host "   Error: Docker Compose configuration is invalid."

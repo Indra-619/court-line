@@ -26,7 +26,7 @@ Get the code on your local machine:
 
 ```bash
 git clone https://github.com/Indra-619/court-line.git
-cd book-lapangan
+cd court-line
 ```
 
 ## 2. ✅ Verify Installation
