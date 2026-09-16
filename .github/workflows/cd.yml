@@ -59,7 +59,9 @@ jobs:
             type=sha,format=short
             type=match,pattern=v(.*),group=1
             type=match,pattern=v(.*),group=1,suffix=-sha
-            type=raw,value=latest,enable=${{ is_tag }}
+            # `flavor: latest=auto` below promotes matching semver tags
+            # (incl. tag-driven builds) to `latest`; main pushes keep only
+            # the SHA tag, since they never match the vX.Y.Z pattern.
           flavor: |
             latest=auto
           # Bake common provenance/labels into every tag produced.
