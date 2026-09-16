@@ -1,4 +1,4 @@
-module github.com/your-username/book-lapangan/backend
+module github.com/Indra-619/court-line/backend
 
 go 1.21
 

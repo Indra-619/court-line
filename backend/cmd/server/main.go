@@ -4,9 +4,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/your-username/book-lapangan/backend/internal/database"
-	"github.com/your-username/book-lapangan/backend/internal/routes"
-	"github.com/your-username/book-lapangan/backend/pkg/config"
+	"github.com/Indra-619/court-line/backend/internal/database"
+	"github.com/Indra-619/court-line/backend/internal/routes"
+	"github.com/Indra-619/court-line/backend/pkg/config"
 )
 
 func main() {

@@ -5,7 +5,7 @@ package pricing
 import (
 	"fmt"
 
-	"github.com/your-username/book-lapangan/backend/pkg/validate"
+	"github.com/Indra-619/court-line/backend/pkg/validate"
 )
 
 // CalculateHours returns the exact duration in hours between two HH:MM

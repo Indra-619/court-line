@@ -4,8 +4,8 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 
-	"github.com/your-username/book-lapangan/backend/internal/handlers"
-	"github.com/your-username/book-lapangan/backend/internal/middleware"
+	"github.com/Indra-619/court-line/backend/internal/handlers"
+	"github.com/Indra-619/court-line/backend/internal/middleware"
 )
 
 // SetupRouter configures all routes

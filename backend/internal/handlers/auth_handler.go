@@ -19,9 +19,9 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 
-	"github.com/your-username/book-lapangan/backend/internal/database"
-	"github.com/your-username/book-lapangan/backend/internal/models"
-	"github.com/your-username/book-lapangan/backend/pkg/config"
+	"github.com/Indra-619/court-line/backend/internal/database"
+	"github.com/Indra-619/court-line/backend/internal/models"
+	"github.com/Indra-619/court-line/backend/pkg/config"
 )
 
 var googleOauthConfig *oauth2.Config

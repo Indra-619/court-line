@@ -3,7 +3,7 @@ package pricing
 import (
 	"fmt"
 
-	"github.com/your-username/book-lapangan/backend/pkg/validate"
+	"github.com/Indra-619/court-line/backend/pkg/validate"
 )
 
 // Overlaps reports whether two half-open HH:MM intervals [start, end)

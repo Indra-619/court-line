@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/your-username/book-lapangan/backend/internal/models"
+	"github.com/Indra-619/court-line/backend/internal/models"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 

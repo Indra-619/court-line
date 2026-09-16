@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 
-	"github.com/your-username/book-lapangan/backend/internal/domain/entity"
+	"github.com/Indra-619/court-line/backend/internal/domain/entity"
 )
 
 type CourtRepository interface {
