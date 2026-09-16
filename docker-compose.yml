@@ -16,6 +16,12 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - app-network
 
@@ -28,14 +34,19 @@ services:
     environment:
       - NUXT_PUBLIC_API_BASE=http://localhost:8080
     depends_on:
-      - backend
+      backend:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - app-network
 
   mongo:
-    image: mongo:latest
-    ports:
-      - "27017:27017"
+    image: mongo:7.0
     volumes:
       - mongo-data:/data/db
     healthcheck:
