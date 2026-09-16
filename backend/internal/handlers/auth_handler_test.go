@@ -28,6 +28,16 @@ func authTestRouter(h *AuthHandler, userID primitive.ObjectID) *gin.Engine {
 	return r
 }
 
+// newSessionTestHandler builds an AuthHandler wired to fresh in-memory
+// repositories for session tests.
+func newSessionTestHandler() (*AuthHandler, *testutil.FakeUserRepository, *testutil.FakeRefreshTokenRepository, *testutil.FakeRevokedTokenRepository) {
+	users := testutil.NewFakeUserRepository()
+	refreshTokens := testutil.NewFakeRefreshTokenRepository()
+	revokedTokens := testutil.NewFakeRevokedTokenRepository()
+	h := NewAuthHandler(users, refreshTokens, revokedTokens)
+	return h, users, refreshTokens, revokedTokens
+}
+
 func TestGetCurrentUserReturnsUserData(t *testing.T) {
 	userID := primitive.NewObjectID()
 	users := testutil.NewFakeUserRepository()
@@ -42,7 +52,7 @@ func TestGetCurrentUserReturnsUserData(t *testing.T) {
 		UpdatedAt: time.Now(),
 	}
 
-	h := NewAuthHandler(users)
+	h := NewAuthHandler(users, testutil.NewFakeRefreshTokenRepository(), testutil.NewFakeRevokedTokenRepository())
 	r := authTestRouter(h, userID)
 
 	req := httptest.NewRequest(http.MethodGet, "/me", nil)
@@ -71,7 +81,7 @@ func TestGetCurrentUserReturnsUserData(t *testing.T) {
 
 func TestGetCurrentUserNotFound(t *testing.T) {
 	users := testutil.NewFakeUserRepository()
-	h := NewAuthHandler(users)
+	h := NewAuthHandler(users, testutil.NewFakeRefreshTokenRepository(), testutil.NewFakeRevokedTokenRepository())
 	r := authTestRouter(h, primitive.NewObjectID())
 
 	req := httptest.NewRequest(http.MethodGet, "/me", nil)
@@ -87,7 +97,7 @@ func TestGetCurrentUserNotFound(t *testing.T) {
 }
 
 func TestLogoutAlwaysSucceeds(t *testing.T) {
-	h := NewAuthHandler(testutil.NewFakeUserRepository())
+	h, _, _, _ := newSessionTestHandler()
 	r := authTestRouter(h, primitive.NewObjectID())
 
 	req := httptest.NewRequest(http.MethodPost, "/logout", nil)
@@ -103,7 +113,7 @@ func TestLogoutAlwaysSucceeds(t *testing.T) {
 }
 
 func TestExchangeTokenRoundTrip(t *testing.T) {
-	h := NewAuthHandler(testutil.NewFakeUserRepository())
+	h, _, _, _ := newSessionTestHandler()
 	r := authTestRouter(h, primitive.NewObjectID())
 
 	code := createExchangeCode(primitive.NewObjectID().Hex())

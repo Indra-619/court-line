@@ -51,3 +51,20 @@ type UserRepository interface {
 	Create(ctx context.Context, user *entity.User) error
 	Update(ctx context.Context, user *entity.User) error
 }
+
+// RefreshTokenRepository stores refresh-token hashes. Implementations
+// never see the raw token; FindByHash returns ErrNotFound for tokens
+// that are unknown, expired, or revoked.
+type RefreshTokenRepository interface {
+	Create(ctx context.Context, record *entity.RefreshToken) error
+	FindByHash(ctx context.Context, hash string) (*entity.RefreshToken, error)
+	DeleteByHash(ctx context.Context, hash string) error
+	DeleteByUserID(ctx context.Context, userID string) error
+}
+
+// RevokedTokenRepository is the JWT jti blacklist used to invalidate
+// access tokens on logout before they expire naturally.
+type RevokedTokenRepository interface {
+	Create(ctx context.Context, record *entity.RevokedToken) error
+	Exists(ctx context.Context, jti string) (bool, error)
+}

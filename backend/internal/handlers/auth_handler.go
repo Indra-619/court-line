@@ -59,15 +59,27 @@ func init() {
 	}
 }
 
-// AuthHandler serves the /auth endpoints on top of an injected user
-// repository; it never touches the database driver directly.
+// AuthHandler serves the /auth endpoints on top of injected
+// repositories; it never touches the database driver directly.
 type AuthHandler struct {
-	users repository.UserRepository
+	users         repository.UserRepository
+	refreshTokens repository.RefreshTokenRepository
+	revokedTokens repository.RevokedTokenRepository
 }
 
-// NewAuthHandler builds an AuthHandler backed by the given repository.
-func NewAuthHandler(users repository.UserRepository) *AuthHandler {
-	return &AuthHandler{users: users}
+// NewAuthHandler builds an AuthHandler backed by the given
+// repositories. refreshTokens stores refresh-token hashes;
+// revokedTokens is the jti blacklist used by logout.
+func NewAuthHandler(
+	users repository.UserRepository,
+	refreshTokens repository.RefreshTokenRepository,
+	revokedTokens repository.RevokedTokenRepository,
+) *AuthHandler {
+	return &AuthHandler{
+		users:         users,
+		refreshTokens: refreshTokens,
+		revokedTokens: revokedTokens,
+	}
 }
 
 // GoogleUserInfo represents the user info from Google
@@ -191,7 +203,36 @@ func (h *AuthHandler) ExchangeToken(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": gin.H{"token": jwtToken}})
+	refreshToken, err := h.issueRefreshToken(c.Request.Context(), userID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"token": jwtToken, "refreshToken": refreshToken}})
+}
+
+// refreshTokenTTL is how long an issued refresh token stays valid.
+const refreshTokenTTL = 30 * 24 * time.Hour
+
+// issueRefreshToken generates a fresh refresh token, persists only its
+// SHA-256 hash, and returns the raw token for the client.
+func (h *AuthHandler) issueRefreshToken(ctx context.Context, userID string) (string, error) {
+	raw, err := generateRefreshToken()
+	if err != nil {
+		return "", err
+	}
+	now := time.Now()
+	record := &entity.RefreshToken{
+		UserID:    userID,
+		TokenHash: sha256Hex(raw),
+		ExpiresAt: now.Add(refreshTokenTTL),
+		CreatedAt: now,
+	}
+	if err := h.refreshTokens.Create(ctx, record); err != nil {
+		return "", err
+	}
+	return raw, nil
 }
 
 // GetCurrentUser returns the current authenticated user
@@ -222,10 +263,16 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "Logged out successfully"})
 }
 
-// generateJWT generates a JWT token for the user
+// generateJWT generates a JWT token for the user. Each token carries a
+// unique jti so it can be blacklisted individually on logout.
 func generateJWT(userID string) (string, error) {
+	jti, err := generateJTI()
+	if err != nil {
+		return "", err
+	}
 	claims := jwt.MapClaims{
 		"userId": userID,
+		"jti":    jti,
 		"exp":    time.Now().Add(time.Hour * 24).Unix(), // 24 hours
 		"iat":    time.Now().Unix(),
 	}

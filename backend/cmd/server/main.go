@@ -31,15 +31,16 @@ func main() {
 	courtRepo := infrastructure.NewMongoCourtRepository(client, database.DBName)
 	bookingRepo := infrastructure.NewMongoBookingRepository(client, database.DBName)
 	userRepo := infrastructure.NewMongoUserRepository(client, database.DBName)
+	refreshTokenRepo := infrastructure.NewMongoRefreshTokenRepository(client, database.DBName)
+	revokedTokenRepo := infrastructure.NewMongoRevokedTokenRepository(client, database.DBName)
 
 	// Back the admin role check with the injected user repository so
 	// middleware never reaches for a global database handle.
 	middleware.SetUserRoleLookup(userRepo)
-
 	deps := routes.Deps{
 		Courts:   handlers.NewCourtHandler(courtRepo),
 		Bookings: handlers.NewBookingHandler(bookingRepo, courtRepo),
-		Auth:     handlers.NewAuthHandler(userRepo),
+		Auth:     handlers.NewAuthHandler(userRepo, refreshTokenRepo, revokedTokenRepo),
 	}
 
 	// Setup router
