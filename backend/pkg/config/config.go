@@ -27,6 +27,9 @@ func validateSecret(s string) error {
 	if s == "" {
 		return errors.New("JWT_SECRET environment variable is required but not set")
 	}
+	if len(s) < 32 {
+		return errors.New("JWT_SECRET must be at least 32 characters")
+	}
 	for _, forbidden := range forbiddenSecrets {
 		if s == forbidden {
 			return errors.New("JWT_SECRET is set to a known insecure default; generate a strong random secret")

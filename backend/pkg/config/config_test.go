@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestValidateSecretRejectsEmpty(t *testing.T) {
 	if err := validateSecret(""); err == nil {
@@ -18,6 +21,23 @@ func TestValidateSecretRejectsForbiddenDefaults(t *testing.T) {
 		if err := validateSecret(s); err == nil {
 			t.Errorf("expected error for forbidden default %q, got nil", s)
 		}
+	}
+}
+
+func TestValidateSecretRejectsShortSecret(t *testing.T) {
+	short := strings.Repeat("a", 31)
+	err := validateSecret(short)
+	if err == nil {
+		t.Fatal("expected error for 31-character secret, got nil")
+	}
+	if err.Error() != "JWT_SECRET must be at least 32 characters" {
+		t.Errorf("unexpected error message: %v", err)
+	}
+}
+
+func TestValidateSecretAcceptsMinimumLength(t *testing.T) {
+	if err := validateSecret(strings.Repeat("b", 32)); err != nil {
+		t.Fatalf("expected 32-character secret to be accepted, got: %v", err)
 	}
 }
 
