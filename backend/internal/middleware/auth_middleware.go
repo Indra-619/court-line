@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -85,10 +86,18 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Reject tokens whose jti was blacklisted by a logout.
+		// Reject tokens whose jti was blacklisted by a logout. When the
+		// blacklist cannot be reached the request fails closed: it is
+		// safer to refuse a valid token than to honour a revoked one.
 		if jti, ok := claims["jti"].(string); ok && jti != "" {
 			revoked, err := tokenBlacklist(c.Request.Context(), jti)
-			if err == nil && revoked {
+			if err != nil {
+				log.Printf("auth middleware: token blacklist lookup failed: %v", err)
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Authentication service unavailable"})
+				c.Abort()
+				return
+			}
+			if revoked {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "Token revoked"})
 				c.Abort()
 				return
