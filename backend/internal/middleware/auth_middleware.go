@@ -2,12 +2,13 @@ package middleware
 
 import (
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+
+	"github.com/your-username/book-lapangan/backend/pkg/config"
 )
 
 // AuthMiddleware validates JWT tokens
@@ -31,16 +32,11 @@ func AuthMiddleware() gin.HandlerFunc {
 		tokenString := parts[1]
 
 		// Parse and validate token
-		secret := os.Getenv("JWT_SECRET")
-		if secret == "" {
-			secret = "default-secret-change-in-production"
-		}
-
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, jwt.ErrSignatureInvalid
 			}
-			return []byte(secret), nil
+			return []byte(config.JWTSecret()), nil
 		})
 
 		if err != nil || !token.Valid {
@@ -94,16 +90,11 @@ func OptionalAuthMiddleware() gin.HandlerFunc {
 
 		tokenString := parts[1]
 
-		secret := os.Getenv("JWT_SECRET")
-		if secret == "" {
-			secret = "default-secret-change-in-production"
-		}
-
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, jwt.ErrSignatureInvalid
 			}
-			return []byte(secret), nil
+			return []byte(config.JWTSecret()), nil
 		})
 
 		if err != nil || !token.Valid {

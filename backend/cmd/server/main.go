@@ -6,6 +6,7 @@ import (
 
 	"github.com/your-username/book-lapangan/backend/internal/database"
 	"github.com/your-username/book-lapangan/backend/internal/routes"
+	"github.com/your-username/book-lapangan/backend/pkg/config"
 )
 
 func main() {
@@ -13,6 +14,9 @@ func main() {
 	if port == "" {
 		port = "8080"
 	}
+
+	// Validate required configuration before anything else starts
+	config.MustLoad()
 
 	// Connect to MongoDB
 	if err := database.Connect(); err != nil {

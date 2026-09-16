@@ -18,6 +18,7 @@ import (
 
 	"github.com/your-username/book-lapangan/backend/internal/database"
 	"github.com/your-username/book-lapangan/backend/internal/models"
+	"github.com/your-username/book-lapangan/backend/pkg/config"
 )
 
 var googleOauthConfig *oauth2.Config
@@ -159,11 +160,6 @@ func Logout(c *gin.Context) {
 
 // generateJWT generates a JWT token for the user
 func generateJWT(userID string) (string, error) {
-	secret := os.Getenv("JWT_SECRET")
-	if secret == "" {
-		secret = "default-secret-change-in-production"
-	}
-
 	claims := jwt.MapClaims{
 		"userId": userID,
 		"exp":    time.Now().Add(time.Hour * 24 * 7).Unix(), // 7 days
@@ -171,5 +167,5 @@ func generateJWT(userID string) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(secret))
+	return token.SignedString([]byte(config.JWTSecret()))
 }
