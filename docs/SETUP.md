@@ -57,6 +57,7 @@ We use environment variables to keep secrets safe.
    | `GOOGLE_CLIENT_ID` | OAuth Client ID from Google Cloud Console |
    | `GOOGLE_CLIENT_SECRET` | OAuth Client Secret |
    | `JWT_SECRET` | Secret key for signing session tokens |
+   | `COOKIE_SECURE` | Set to `true` in production (HTTPS) to mark session cookies as Secure |
 
 ---
 

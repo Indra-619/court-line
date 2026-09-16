@@ -100,14 +100,14 @@ func (h *AuthHandler) GoogleLogin(c *gin.Context) {
 	}
 
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(oauthStateCookie, state, 600, "/", "", false, true)
+	c.SetCookie(oauthStateCookie, state, 600, "/", "", config.CookieSecure(), true)
 	url := googleOauthConfig.AuthCodeURL(state, oauth2.AccessTypeOffline)
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
 // GoogleCallback handles the OAuth callback
 func (h *AuthHandler) GoogleCallback(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
 	defer cancel()
 
 	expectedState, err := c.Cookie(oauthStateCookie)
@@ -231,15 +231,11 @@ func (h *AuthHandler) RefreshToken(c *gin.Context) {
 	}
 
 	tokenHash := sha256Hex(input.RefreshToken)
-	record, err := h.refreshTokens.FindByHash(ctx, tokenHash)
+	// Rotate atomically: only one concurrent refresh can claim the
+	// token, and it is dead from this point on.
+	record, err := h.refreshTokens.FindAndDeleteByHash(ctx, tokenHash)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired refresh token"})
-		return
-	}
-
-	// Rotate: the old token is dead from this point on.
-	if err := h.refreshTokens.DeleteByHash(ctx, tokenHash); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to refresh session"})
 		return
 	}
 
@@ -290,7 +286,7 @@ func (h *AuthHandler) issueRefreshToken(ctx context.Context, userID string) (str
 
 // GetCurrentUser returns the current authenticated user
 func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
 
 	userID, exists := c.Get("userID")

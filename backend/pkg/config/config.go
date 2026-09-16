@@ -16,11 +16,19 @@ var forbiddenSecrets = []string{
 
 var jwtSecret string
 
+// cookieSecure controls the Secure flag on session cookies. It is read
+// once at load time from COOKIE_SECURE so deployments behind HTTPS can
+// opt in without a code change; local dev keeps the default false.
+var cookieSecure bool
+
 // validateSecret reports whether a candidate JWT secret is usable. It
 // rejects empty values and known insecure defaults.
 func validateSecret(s string) error {
 	if s == "" {
 		return errors.New("JWT_SECRET environment variable is required but not set")
+	}
+	if len(s) < 32 {
+		return errors.New("JWT_SECRET must be at least 32 characters")
 	}
 	for _, forbidden := range forbiddenSecrets {
 		if s == forbidden {
@@ -38,6 +46,19 @@ func MustLoad() {
 		log.Fatalf("configuration error: %v", err)
 	}
 	jwtSecret = secret
+
+	switch v := os.Getenv("COOKIE_SECURE"); v {
+	case "true", "1":
+		cookieSecure = true
+	default:
+		cookieSecure = false
+	}
+}
+
+// CookieSecure reports whether session cookies must carry the Secure
+// flag (set via COOKIE_SECURE=true in production).
+func CookieSecure() bool {
+	return cookieSecure
 }
 
 // JWTSecret returns the loaded JWT signing secret.

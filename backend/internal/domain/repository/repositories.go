@@ -58,6 +58,11 @@ type UserRepository interface {
 type RefreshTokenRepository interface {
 	Create(ctx context.Context, record *entity.RefreshToken) error
 	FindByHash(ctx context.Context, hash string) (*entity.RefreshToken, error)
+	// FindAndDeleteByHash atomically removes and returns the record for
+	// a valid (unrevoked, unexpired) token hash, so rotation cannot be
+	// raced by a concurrent refresh. Unknown, expired, or revoked
+	// hashes return ErrNotFound.
+	FindAndDeleteByHash(ctx context.Context, hash string) (*entity.RefreshToken, error)
 	DeleteByHash(ctx context.Context, hash string) error
 	DeleteByUserID(ctx context.Context, userID string) error
 }

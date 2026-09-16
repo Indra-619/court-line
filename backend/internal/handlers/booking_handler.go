@@ -48,7 +48,7 @@ func userIDHex(c *gin.Context) (string, bool) {
 
 // CreateBooking creates a new booking (requires authentication)
 func (h *BookingHandler) CreateBooking(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
 
 	// Get user ID from context (set by auth middleware)
@@ -164,7 +164,7 @@ func (h *BookingHandler) CreateBooking(c *gin.Context) {
 
 // GetBookings returns bookings for the authenticated user
 func (h *BookingHandler) GetBookings(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
 
 	userID, ok := userIDHex(c)
@@ -213,7 +213,7 @@ func toBookingsPublicView(bookings []*entity.Booking) []BookingPublicView {
 
 // GetBookingsByCourtID returns all bookings for a specific court
 func (h *BookingHandler) GetBookingsByCourtID(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
 
 	courtIDParam := c.Param("id")

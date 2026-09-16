@@ -118,3 +118,29 @@ func TestAuthMiddlewareInvalidTokenRejected(t *testing.T) {
 		t.Fatalf("expected 401 for malformed token, got %d", w.Code)
 	}
 }
+
+func TestAuthMiddlewareBlacklistErrorFailsClosed(t *testing.T) {
+	defer restoreBlacklist()
+	gin.SetMode(gin.TestMode)
+	tokenBlacklist = func(ctx context.Context, jti string) (bool, error) {
+		return false, context.DeadlineExceeded
+	}
+	r := gin.New()
+	r.Use(AuthMiddleware())
+	r.GET("/protected", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	})
+
+	signed := signTestJWT(t, primitive.NewObjectID(), "any-jti")
+	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req.Header.Set("Authorization", "Bearer "+signed)
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500 when blacklist lookup errors, got %d", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "Authentication service unavailable") {
+		t.Errorf("expected unavailable error body, got %s", w.Body.String())
+	}
+}

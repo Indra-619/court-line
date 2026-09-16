@@ -26,7 +26,7 @@ func NewCourtHandler(repo repository.CourtRepository) *CourtHandler {
 
 // GetCourts returns all courts
 func (h *CourtHandler) GetCourts(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
 
 	courts, err := h.repo.FindAll(ctx)
@@ -44,7 +44,7 @@ func (h *CourtHandler) GetCourts(c *gin.Context) {
 
 // GetCourtByID returns a single court by ID
 func (h *CourtHandler) GetCourtByID(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
 
 	idParam := c.Param("id")
@@ -64,7 +64,7 @@ func (h *CourtHandler) GetCourtByID(c *gin.Context) {
 
 // CreateCourt creates a new court
 func (h *CourtHandler) CreateCourt(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
 
 	var input models.CreateCourtInput
@@ -94,7 +94,7 @@ func (h *CourtHandler) CreateCourt(c *gin.Context) {
 
 // UpdateCourt updates an existing court
 func (h *CourtHandler) UpdateCourt(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
 
 	idParam := c.Param("id")
@@ -134,7 +134,7 @@ func (h *CourtHandler) UpdateCourt(c *gin.Context) {
 
 // DeleteCourt deletes a court
 func (h *CourtHandler) DeleteCourt(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
 
 	idParam := c.Param("id")

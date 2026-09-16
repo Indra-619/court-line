@@ -76,6 +76,59 @@ func TestFakeRefreshTokenFindByHashFiltersExpiredAndRevoked(t *testing.T) {
 	}
 }
 
+func TestFakeRefreshTokenFindAndDeleteByHashIsSingleUse(t *testing.T) {
+	ctx := context.Background()
+	repo := NewFakeRefreshTokenRepository()
+
+	if err := repo.Create(ctx, &entity.RefreshToken{
+		UserID:    "user-1",
+		TokenHash: "hash-live",
+		ExpiresAt: time.Now().Add(24 * time.Hour),
+		CreatedAt: time.Now(),
+	}); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	if err := repo.Create(ctx, &entity.RefreshToken{
+		UserID:    "user-1",
+		TokenHash: "hash-expired",
+		ExpiresAt: time.Now().Add(-time.Hour),
+		CreatedAt: time.Now().Add(-31 * 24 * time.Hour),
+	}); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+	if err := repo.Create(ctx, &entity.RefreshToken{
+		UserID:    "user-1",
+		TokenHash: "hash-revoked",
+		ExpiresAt: time.Now().Add(24 * time.Hour),
+		CreatedAt: time.Now(),
+		Revoked:   true,
+	}); err != nil {
+		t.Fatalf("Create failed: %v", err)
+	}
+
+	record, err := repo.FindAndDeleteByHash(ctx, "hash-live")
+	if err != nil {
+		t.Fatalf("FindAndDeleteByHash failed: %v", err)
+	}
+	if record.UserID != "user-1" {
+		t.Errorf("expected UserID user-1, got %s", record.UserID)
+	}
+
+	// The same hash cannot be claimed twice.
+	if _, err := repo.FindAndDeleteByHash(ctx, "hash-live"); err == nil {
+		t.Error("expected second FindAndDeleteByHash to fail")
+	}
+	if _, err := repo.FindAndDeleteByHash(ctx, "hash-expired"); err == nil {
+		t.Error("expected expired token to be rejected")
+	}
+	if _, err := repo.FindAndDeleteByHash(ctx, "hash-revoked"); err == nil {
+		t.Error("expected revoked token to be rejected")
+	}
+	if _, err := repo.FindAndDeleteByHash(ctx, "hash-unknown"); err == nil {
+		t.Error("expected unknown token to be rejected")
+	}
+}
+
 func TestFakeRefreshTokenDeleteByUserID(t *testing.T) {
 	ctx := context.Background()
 	repo := NewFakeRefreshTokenRepository()
