@@ -107,7 +107,7 @@ func (h *AuthHandler) GoogleLogin(c *gin.Context) {
 
 // GoogleCallback handles the OAuth callback
 func (h *AuthHandler) GoogleCallback(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 30*time.Second)
 	defer cancel()
 
 	expectedState, err := c.Cookie(oauthStateCookie)
@@ -286,7 +286,7 @@ func (h *AuthHandler) issueRefreshToken(ctx context.Context, userID string) (str
 
 // GetCurrentUser returns the current authenticated user
 func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(c.Request.Context(), 10*time.Second)
 	defer cancel()
 
 	userID, exists := c.Get("userID")
