@@ -50,7 +50,7 @@ graph TD
 ## 📂 Project Structure
 
 ```bash
-book-lapangan/
+court-line/
 ├── backend/
 │   ├── cmd/server/         # Entry point
 │   ├── internal/
