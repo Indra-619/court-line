@@ -47,7 +47,7 @@
 
 <script setup>
 const config = useRuntimeConfig()
-const { isLoggedIn, loginWithGoogle, getAuthHeader } = useAuth()
+const { isLoggedIn, loginWithGoogle, authFetch } = useAuth()
 
 const bookings = ref([])
 const loading = ref(true)
@@ -82,9 +82,7 @@ onMounted(async () => {
   }
 
   try {
-    const response = await $fetch(`${config.public.apiBase}/api/bookings`, {
-      headers: getAuthHeader()
-    })
+    const response = await authFetch(`${config.public.apiBase}/api/bookings`)
     bookings.value = response.data || []
   } catch (error) {
     console.error('Failed to fetch bookings:', error)

@@ -35,7 +35,7 @@ onMounted(async () => {
   }
 
   try {
-    const response = await $fetch<{ data: { token: string } }>(
+    const response = await $fetch<{ data: { token: string; refreshToken: string } }>(
       `${config.public.apiBase}/auth/exchange`,
       {
         method: 'POST',
@@ -43,7 +43,7 @@ onMounted(async () => {
       }
     )
 
-    setToken(response.data.token)
+    setToken(response.data.token, response.data.refreshToken)
     // Redirect to home or previous page
     const redirect = route.query.redirect || '/'
     router.push(redirect as string)
