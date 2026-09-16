@@ -26,6 +26,14 @@ const { setToken } = useAuth()
 
 const error = ref('')
 
+// Only allow same-origin relative paths: exactly one leading slash,
+// rejecting protocol-relative ('//host'), backslash ('/\host') and absolute URLs
+const sanitizeRedirect = (value: unknown): string => {
+  if (typeof value !== 'string') return '/'
+  if (!value.startsWith('/') || value.startsWith('//') || value.startsWith('/\\')) return '/'
+  return value
+}
+
 onMounted(async () => {
   const code = route.query.code
 
@@ -35,7 +43,7 @@ onMounted(async () => {
   }
 
   try {
-    const response = await $fetch<{ data: { token: string } }>(
+    const response = await $fetch<{ data: { token: string; refreshToken: string } }>(
       `${config.public.apiBase}/auth/exchange`,
       {
         method: 'POST',
@@ -43,10 +51,9 @@ onMounted(async () => {
       }
     )
 
-    setToken(response.data.token)
-    // Redirect to home or previous page
-    const redirect = route.query.redirect || '/'
-    router.push(redirect as string)
+    setToken(response.data.token, response.data.refreshToken)
+    // Redirect to home or previous page (same-origin paths only)
+    router.push(sanitizeRedirect(route.query.redirect))
   } catch (e) {
     error.value = 'Authentication failed or the code expired. Please try again.'
   }

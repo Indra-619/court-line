@@ -84,7 +84,7 @@ const props = defineProps({
 
 const emit = defineEmits(['success', 'error'])
 
-const { isLoggedIn, loginWithGoogle, getAuthHeader, user } = useAuth()
+const { isLoggedIn, loginWithGoogle, authFetch, user } = useAuth()
 const config = useRuntimeConfig()
 
 const loading = ref(false)
@@ -150,10 +150,9 @@ const submitBooking = async () => {
   errorMessage.value = ''
 
   try {
-    const response = await $fetch(`${config.public.apiBase}/api/bookings`, {
+    const response = await authFetch(`${config.public.apiBase}/api/bookings`, {
       method: 'POST',
       headers: {
-        ...getAuthHeader(),
         'Content-Type': 'application/json'
       },
       body: {
