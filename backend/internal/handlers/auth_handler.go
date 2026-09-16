@@ -160,19 +160,41 @@ func GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	// Generate JWT token
-	jwtToken, err := generateJWT(user.ID.Hex())
+	// Issue a single-use exchange code and redirect to the frontend
+	exchangeCode := createExchangeCode(user.ID.Hex())
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:3000"
+	}
+	c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/callback?code=%s", frontendURL, exchangeCode))
+}
+
+// ExchangeTokenInput represents the request body for the token exchange endpoint
+type ExchangeTokenInput struct {
+	Code string `json:"code" binding:"required"`
+}
+
+// ExchangeToken trades a one-time exchange code for a JWT
+func ExchangeToken(c *gin.Context) {
+	var input ExchangeTokenInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired code"})
+		return
+	}
+
+	userID, ok := consumeExchangeCode(input.Code)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired code"})
+		return
+	}
+
+	jwtToken, err := generateJWT(userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
 
-	// Redirect to frontend with token
-	frontendURL := os.Getenv("FRONTEND_URL")
-	if frontendURL == "" {
-		frontendURL = "http://localhost:3000"
-	}
-	c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/callback?token=%s", frontendURL, jwtToken))
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"token": jwtToken}})
 }
 
 // GetCurrentUser returns the current authenticated user
@@ -209,7 +231,7 @@ func Logout(c *gin.Context) {
 func generateJWT(userID string) (string, error) {
 	claims := jwt.MapClaims{
 		"userId": userID,
-		"exp":    time.Now().Add(time.Hour * 24 * 7).Unix(), // 7 days
+		"exp":    time.Now().Add(time.Hour * 24).Unix(), // 24 hours
 		"iat":    time.Now().Unix(),
 	}
 
