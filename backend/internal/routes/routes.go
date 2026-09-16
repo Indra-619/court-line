@@ -32,6 +32,7 @@ func SetupRouter() *gin.Engine {
 	{
 		auth.GET("/google", handlers.GoogleLogin)
 		auth.GET("/google/callback", handlers.GoogleCallback)
+		auth.POST("/exchange", handlers.ExchangeToken)
 	}
 
 	// Protected auth routes
@@ -50,9 +51,9 @@ func SetupRouter() *gin.Engine {
 		api.GET("/courts/:id", handlers.GetCourtByID)
 		api.GET("/courts/:id/bookings", handlers.GetBookingsByCourtID)
 
-		// Protected court routes
+		// Protected court routes (admin only)
 		courtsProtected := api.Group("/courts")
-		courtsProtected.Use(middleware.AuthMiddleware())
+		courtsProtected.Use(middleware.AuthMiddleware(), middleware.AdminMiddleware())
 		{
 			courtsProtected.POST("", handlers.CreateCourt)
 			courtsProtected.PUT("/:id", handlers.UpdateCourt)

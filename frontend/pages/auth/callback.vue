@@ -21,20 +21,34 @@
 <script setup lang="ts">
 const route = useRoute()
 const router = useRouter()
+const config = useRuntimeConfig()
 const { setToken } = useAuth()
 
 const error = ref('')
 
-onMounted(() => {
-  const token = route.query.token
+onMounted(async () => {
+  const code = route.query.code
 
-  if (token) {
-    setToken(token as string)
+  if (!code) {
+    error.value = 'No authentication code received. Please try again.'
+    return
+  }
+
+  try {
+    const response = await $fetch<{ data: { token: string } }>(
+      `${config.public.apiBase}/auth/exchange`,
+      {
+        method: 'POST',
+        body: { code: code as string }
+      }
+    )
+
+    setToken(response.data.token)
     // Redirect to home or previous page
     const redirect = route.query.redirect || '/'
     router.push(redirect as string)
-  } else {
-    error.value = 'No authentication token received. Please try again.'
+  } catch (e) {
+    error.value = 'Authentication failed or the code expired. Please try again.'
   }
 })
 </script>

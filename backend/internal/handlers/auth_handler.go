@@ -2,6 +2,9 @@ package handlers
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/subtle"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -18,9 +21,32 @@ import (
 
 	"github.com/your-username/book-lapangan/backend/internal/database"
 	"github.com/your-username/book-lapangan/backend/internal/models"
+	"github.com/your-username/book-lapangan/backend/pkg/config"
 )
 
 var googleOauthConfig *oauth2.Config
+
+const oauthStateCookie = "oauth_state"
+
+// generateState returns a cryptographically random 32-byte hex string
+// used as the OAuth state parameter.
+func generateState() (string, error) {
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buf), nil
+}
+
+// validateState compares the state received from the provider with the
+// expected value using a constant-time comparison. Both values must be
+// non-empty.
+func validateState(received, expected string) bool {
+	if received == "" || expected == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(received), []byte(expected)) == 1
+}
 
 func init() {
 	googleOauthConfig = &oauth2.Config{
@@ -46,7 +72,15 @@ type GoogleUserInfo struct {
 
 // GoogleLogin redirects to Google OAuth
 func GoogleLogin(c *gin.Context) {
-	url := googleOauthConfig.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
+	state, err := generateState()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate state"})
+		return
+	}
+
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie(oauthStateCookie, state, 600, "/", "", false, true)
+	url := googleOauthConfig.AuthCodeURL(state, oauth2.AccessTypeOffline)
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
@@ -54,6 +88,19 @@ func GoogleLogin(c *gin.Context) {
 func GoogleCallback(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+
+	expectedState, err := c.Cookie(oauthStateCookie)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or missing OAuth state"})
+		return
+	}
+	receivedState := c.Query("state")
+	if !validateState(receivedState, expectedState) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or missing OAuth state"})
+		return
+	}
+	// Clear the state cookie now that it has been validated
+	c.SetCookie(oauthStateCookie, "", -1, "/", "", false, true)
 
 	code := c.Query("code")
 	if code == "" {
@@ -94,6 +141,7 @@ func GoogleCallback(c *gin.Context) {
 		},
 		"$setOnInsert": bson.M{
 			"googleId":  googleUser.ID,
+			"role":      "user",
 			"createdAt": time.Now(),
 		},
 	}
@@ -112,19 +160,41 @@ func GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	// Generate JWT token
-	jwtToken, err := generateJWT(user.ID.Hex())
+	// Issue a single-use exchange code and redirect to the frontend
+	exchangeCode := createExchangeCode(user.ID.Hex())
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:3000"
+	}
+	c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/callback?code=%s", frontendURL, exchangeCode))
+}
+
+// ExchangeTokenInput represents the request body for the token exchange endpoint
+type ExchangeTokenInput struct {
+	Code string `json:"code" binding:"required"`
+}
+
+// ExchangeToken trades a one-time exchange code for a JWT
+func ExchangeToken(c *gin.Context) {
+	var input ExchangeTokenInput
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired code"})
+		return
+	}
+
+	userID, ok := consumeExchangeCode(input.Code)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired code"})
+		return
+	}
+
+	jwtToken, err := generateJWT(userID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
 		return
 	}
 
-	// Redirect to frontend with token
-	frontendURL := os.Getenv("FRONTEND_URL")
-	if frontendURL == "" {
-		frontendURL = "http://localhost:3000"
-	}
-	c.Redirect(http.StatusTemporaryRedirect, fmt.Sprintf("%s/auth/callback?token=%s", frontendURL, jwtToken))
+	c.JSON(http.StatusOK, gin.H{"data": gin.H{"token": jwtToken}})
 }
 
 // GetCurrentUser returns the current authenticated user
@@ -159,17 +229,12 @@ func Logout(c *gin.Context) {
 
 // generateJWT generates a JWT token for the user
 func generateJWT(userID string) (string, error) {
-	secret := os.Getenv("JWT_SECRET")
-	if secret == "" {
-		secret = "default-secret-change-in-production"
-	}
-
 	claims := jwt.MapClaims{
 		"userId": userID,
-		"exp":    time.Now().Add(time.Hour * 24 * 7).Unix(), // 7 days
+		"exp":    time.Now().Add(time.Hour * 24).Unix(), // 24 hours
 		"iat":    time.Now().Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(secret))
+	return token.SignedString([]byte(config.JWTSecret()))
 }
