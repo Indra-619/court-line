@@ -58,6 +58,10 @@
         <span class="price">Rp {{ formatPrice(estimatedPrice) }}</span>
       </div>
 
+      <div v-if="errorMessage" class="form-error" role="alert">
+        {{ errorMessage }}
+      </div>
+
       <button type="submit" class="btn btn-primary btn-full" :disabled="loading">
         <span v-if="loading" class="spinner-sm"></span>
         <span v-else>{{ isLoggedIn ? 'Confirm Booking' : 'Login to Book' }}</span>
@@ -84,6 +88,7 @@ const { isLoggedIn, loginWithGoogle, getAuthHeader, user } = useAuth()
 const config = useRuntimeConfig()
 
 const loading = ref(false)
+const errorMessage = ref('')
 
 const form = ref({
   customerName: '',
@@ -142,6 +147,7 @@ const submitBooking = async () => {
   }
 
   loading.value = true
+  errorMessage.value = ''
 
   try {
     const response = await $fetch(`${config.public.apiBase}/api/bookings`, {
@@ -172,7 +178,16 @@ const submitBooking = async () => {
     }
   } catch (error) {
     console.error('Booking failed:', error)
-    emit('error', error.message || 'Failed to create booking')
+    const status = error?.statusCode || error?.status
+    if (status === 409) {
+      const conflict = error?.data?.conflict
+      errorMessage.value = conflict?.startTime && conflict?.endTime
+        ? `This court is already booked from ${conflict.startTime} to ${conflict.endTime} on that date. Please choose a different time slot.`
+        : error?.data?.error || 'This time slot is already booked. Please choose a different time slot.'
+    } else {
+      errorMessage.value = error?.data?.error || error?.message || 'Failed to create booking'
+    }
+    emit('error', errorMessage.value)
   } finally {
     loading.value = false
   }
@@ -211,6 +226,16 @@ const submitBooking = async () => {
 
 .btn-full {
   width: 100%;
+}
+
+.form-error {
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius-md);
+  color: #b91c1c;
+  font-size: 0.875rem;
 }
 
 .spinner-sm {
