@@ -143,8 +143,20 @@ export const useAuth = () => {
         window.location.href = `${config.public.apiBase}/auth/google`
     }
 
-    // Logout
-    const logout = () => {
+    // Logout: revoke the session server-side, then always clear local state
+    const logout = async () => {
+        if (token.value) {
+            try {
+                await $fetch(`${config.public.apiBase}/auth/logout`, {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${token.value}`
+                    }
+                })
+            } catch {
+                // Server revocation is best-effort; local state is cleared regardless
+            }
+        }
         clearAuthState()
     }
 
