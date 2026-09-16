@@ -100,7 +100,7 @@ func (h *AuthHandler) GoogleLogin(c *gin.Context) {
 	}
 
 	c.SetSameSite(http.SameSiteLaxMode)
-	c.SetCookie(oauthStateCookie, state, 600, "/", "", false, true)
+	c.SetCookie(oauthStateCookie, state, 600, "/", "", config.CookieSecure(), true)
 	url := googleOauthConfig.AuthCodeURL(state, oauth2.AccessTypeOffline)
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
