@@ -2,6 +2,9 @@ package handlers
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/subtle"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -22,6 +25,28 @@ import (
 )
 
 var googleOauthConfig *oauth2.Config
+
+const oauthStateCookie = "oauth_state"
+
+// generateState returns a cryptographically random 32-byte hex string
+// used as the OAuth state parameter.
+func generateState() (string, error) {
+	buf := make([]byte, 32)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(buf), nil
+}
+
+// validateState compares the state received from the provider with the
+// expected value using a constant-time comparison. Both values must be
+// non-empty.
+func validateState(received, expected string) bool {
+	if received == "" || expected == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(received), []byte(expected)) == 1
+}
 
 func init() {
 	googleOauthConfig = &oauth2.Config{
@@ -47,7 +72,15 @@ type GoogleUserInfo struct {
 
 // GoogleLogin redirects to Google OAuth
 func GoogleLogin(c *gin.Context) {
-	url := googleOauthConfig.AuthCodeURL("state-token", oauth2.AccessTypeOffline)
+	state, err := generateState()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate state"})
+		return
+	}
+
+	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetCookie(oauthStateCookie, state, 600, "/", "", false, true)
+	url := googleOauthConfig.AuthCodeURL(state, oauth2.AccessTypeOffline)
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
@@ -55,6 +88,19 @@ func GoogleLogin(c *gin.Context) {
 func GoogleCallback(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+
+	expectedState, err := c.Cookie(oauthStateCookie)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or missing OAuth state"})
+		return
+	}
+	receivedState := c.Query("state")
+	if !validateState(receivedState, expectedState) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid or missing OAuth state"})
+		return
+	}
+	// Clear the state cookie now that it has been validated
+	c.SetCookie(oauthStateCookie, "", -1, "/", "", false, true)
 
 	code := c.Query("code")
 	if code == "" {
