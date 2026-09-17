@@ -18,8 +18,7 @@ Use one of these private channels instead:
 
 1. **GitHub private vulnerability disclosure** (preferred):
    <https://github.com/Indra-619/court-line/security/advisories/new>
-2. **Email**: `indra.619@example.com` (replace with the maintainer's
-   real address before merging — placeholder for this template).
+2. **Email**: `indra.wahyudi619@gmail.com`
 
 Include in the report:
 
