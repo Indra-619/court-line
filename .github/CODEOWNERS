@@ -1,0 +1,41 @@
+# CODEOWNERS — automatic reviewer assignment for court-line.
+# GitHub matches the LAST pattern that applies; put the most specific
+# patterns last.
+
+# Default owners for everything not matched below.
+/*                          @Indra-619
+
+# Backend (Go)
+/backend/                   @Indra-619
+/backend/internal/auth/    @Indra-619
+/backend/internal/config/  @Indra-619
+/backend/internal/handlers/ @Indra-619
+/backend/internal/middleware/ @Indra-619
+/backend/internal/store/   @Indra-619
+/backend/go.mod             @Indra-619
+/backend/go.sum             @Indra-619
+
+# Frontend (Nuxt)
+/frontend/                  @Indra-619
+/frontend/pages/auth/       @Indra-619
+/frontend/composables/      @Indra-619
+/frontend/package.json      @Indra-619
+/frontend/package-lock.json @Indra-619
+
+# Infrastructure & CI
+/.github/                   @Indra-619
+/docker-compose.yml         @Indra-619
+/Dockerfile                 @Indra-619
+/backend/Dockerfile         @Indra-619
+/frontend/Dockerfile        @Indra-619
+
+# Security-sensitive files get explicit ownership.
+/SECURITY.md                @Indra-619
+/.env.example               @Indra-619
+/scripts/                   @Indra-619
+
+# Docs
+/docs/                      @Indra-619
+/README.md                  @Indra-619
+/CONTRIBUTING.md            @Indra-619
+/LICENSE                    @Indra-619
