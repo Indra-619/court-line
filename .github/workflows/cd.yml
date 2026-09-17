@@ -50,7 +50,7 @@ jobs:
 
       - name: Compute image metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/${{ env.IMAGE_NAME }}/${{ matrix.image }}
           # Always tag with the short SHA; on a vX.Y.Z tag push also publish
