@@ -10,11 +10,11 @@
     "typecheck": "nuxt typecheck"
   },
   "devDependencies": {
-    "@types/node": "^26.6.1",
+    "@types/node": "^26.6.4",
     "nuxt": "^3.21.11",
     "typescript": "~5.6.0",
     "vue": "^3.4.0",
     "vue-router": "^4.2.5",
-    "vue-tsc": "^3.3.11"
+    "vue-tsc": "^3.3.12"
   }
 }
