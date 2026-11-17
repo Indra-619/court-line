@@ -3,6 +3,7 @@ package routes
 import (
 	"os"
 	"strings"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -65,6 +66,7 @@ func SetupRouter(deps Deps) *gin.Engine {
 
 	// Auth routes (public)
 	auth := r.Group("/auth")
+	auth.Use(middleware.RateLimitMiddleware(20, time.Minute))
 	{
 		auth.GET("/google", deps.Auth.GoogleLogin)
 		auth.GET("/google/callback", deps.Auth.GoogleCallback)

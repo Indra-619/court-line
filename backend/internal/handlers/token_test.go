@@ -93,8 +93,9 @@ func TestGenerateJWTIncludesJTI(t *testing.T) {
 		t.Fatal("expected numeric exp claim")
 	}
 	remaining := time.Until(time.Unix(int64(exp), 0))
-	if remaining < 23*time.Hour || remaining > 24*time.Hour+time.Minute {
-		t.Errorf("expected ~24h expiry, got %v remaining", remaining)
+	wantTTL := config.JWTTTL()
+	if remaining < wantTTL-time.Minute || remaining > wantTTL {
+		t.Errorf("expected ~%v expiry, got %v remaining", wantTTL, remaining)
 	}
 
 	// jti must differ between tokens

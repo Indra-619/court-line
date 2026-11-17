@@ -348,14 +348,14 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 }
 
 // jwtExpiryFromContext reads the "tokenExp" value set by
-// AuthMiddleware, falling back to now+24h when absent.
+// AuthMiddleware, falling back to now+configured TTL when absent.
 func jwtExpiryFromContext(c *gin.Context) time.Time {
 	if exp, ok := c.Get("tokenExp"); ok {
 		if expTime, ok := exp.(time.Time); ok {
 			return expTime
 		}
 	}
-	return time.Now().Add(24 * time.Hour)
+	return time.Now().Add(config.JWTTTL())
 }
 
 // generateJWT generates a JWT token for the user. Each token carries a
@@ -368,7 +368,7 @@ func generateJWT(userID string) (string, error) {
 	claims := jwt.MapClaims{
 		"userId": userID,
 		"jti":    jti,
-		"exp":    time.Now().Add(time.Hour * 24).Unix(), // 24 hours
+		"exp":    time.Now().Add(config.JWTTTL()).Unix(),
 		"iat":    time.Now().Unix(),
 	}
 
