@@ -4,6 +4,8 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strconv"
+	"time"
 )
 
 // forbiddenSecrets are known placeholder values that must never be used
@@ -38,6 +40,38 @@ func validateSecret(s string) error {
 	return nil
 }
 
+// jwtTTL is the access-token lifetime. Short-lived access tokens limit
+// the replay window of a leaked JWT; the rotating refresh token (30d)
+// keeps sessions alive, and the frontend auto-refreshes on 401.
+// Override with JWT_TTL_MINUTES (clamped 5..1440).
+var jwtTTL = 30 * time.Minute
+
+// loadJWTTTL reads JWT_TTL_MINUTES, keeping the default when unset or
+// invalid and clamping to a sane range.
+func loadJWTTTL() {
+	v := os.Getenv("JWT_TTL_MINUTES")
+	if v == "" {
+		return
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil || n <= 0 {
+		log.Printf("warning: invalid JWT_TTL_MINUTES=%q, keeping default %v", v, jwtTTL)
+		return
+	}
+	if n < 5 {
+		n = 5
+	}
+	if n > 1440 {
+		n = 1440
+	}
+	jwtTTL = time.Duration(n) * time.Minute
+}
+
+// JWTTTL returns the configured access-token lifetime.
+func JWTTTL() time.Duration {
+	return jwtTTL
+}
+
 // MustLoad reads required configuration from the environment and exits
 // the process when a value is missing or left at an insecure default.
 func MustLoad() {
@@ -46,6 +80,8 @@ func MustLoad() {
 		log.Fatalf("configuration error: %v", err)
 	}
 	jwtSecret = secret
+
+	loadJWTTTL()
 
 	switch v := os.Getenv("COOKIE_SECURE"); v {
 	case "true", "1":
