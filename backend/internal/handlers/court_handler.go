@@ -39,7 +39,8 @@ func (h *CourtHandler) GetCourts(c *gin.Context) {
 		courts = []*entity.Court{}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": courts})
+	limit, offset := listPagination(c)
+	c.JSON(http.StatusOK, gin.H{"data": pageSlice(courts, limit, offset)})
 }
 
 // GetCourtByID returns a single court by ID
@@ -103,10 +104,27 @@ func (h *CourtHandler) UpdateCourt(c *gin.Context) {
 		return
 	}
 
-	var input models.CreateCourtInput
+	var input models.UpdateCourtInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid court payload"})
 		return
+	}
+
+	// Load the stored court so an omitted isAvailable keeps its value
+	// instead of silently resetting the court to unavailable.
+	existing, err := h.repo.FindByID(ctx, idParam)
+	if err != nil {
+		if errors.Is(err, repository.ErrNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Court not found"})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update court"})
+		return
+	}
+
+	isAvailable := existing.IsAvailable
+	if input.IsAvailable != nil {
+		isAvailable = *input.IsAvailable
 	}
 
 	court := &entity.Court{
@@ -118,6 +136,7 @@ func (h *CourtHandler) UpdateCourt(c *gin.Context) {
 		PricePerHour: input.PricePerHour,
 		ImageURL:     input.ImageURL,
 		Facilities:   input.Facilities,
+		IsAvailable:  isAvailable,
 	}
 
 	if err := h.repo.Update(ctx, court); err != nil {

@@ -108,6 +108,7 @@ func (r *MongoCourtRepository) Update(ctx context.Context, court *entity.Court) 
 			"pricePerHour": court.PricePerHour,
 			"imageUrl":     court.ImageURL,
 			"facilities":   court.Facilities,
+			"isAvailable":  court.IsAvailable,
 		},
 	}
 
