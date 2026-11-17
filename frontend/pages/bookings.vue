@@ -38,8 +38,20 @@
           </div>
           <div class="booking-price">
             <span class="price">Rp {{ formatPrice(booking.totalPrice) }}</span>
+            <button
+              v-if="canCancel(booking)"
+              class="btn btn-danger btn-sm"
+              :disabled="cancellingId === booking.id"
+              @click="cancelBooking(booking)"
+            >
+              {{ cancellingId === booking.id ? 'Cancelling...' : 'Cancel' }}
+            </button>
           </div>
         </div>
+      </div>
+
+      <div v-if="actionMessage" :class="['action-message', `action-${actionMessage.type}`]">
+        {{ actionMessage.text }}
       </div>
     </div>
   </div>
@@ -51,6 +63,26 @@ const { isLoggedIn, loginWithGoogle, authFetch } = useAuth()
 
 const bookings = ref([])
 const loading = ref(true)
+const cancellingId = ref('')
+const actionMessage = ref(null)
+
+const canCancel = (booking) => booking.status === 'pending' || booking.status === 'confirmed'
+
+const cancelBooking = async (booking) => {
+  if (!confirm(`Cancel booking on ${formatDate(booking.date)} ${booking.startTime}-${booking.endTime}?`)) return
+  cancellingId.value = booking.id
+  actionMessage.value = null
+  try {
+    await authFetch(`${config.public.apiBase}/api/bookings/${booking.id}`, { method: 'DELETE' })
+    booking.status = 'cancelled'
+    actionMessage.value = { type: 'success', text: 'Booking cancelled.' }
+  } catch (error) {
+    const msg = error?.data?.error || 'Failed to cancel booking'
+    actionMessage.value = { type: 'error', text: msg }
+  } finally {
+    cancellingId.value = ''
+  }
+}
 
 const formatPrice = (price) => {
   return new Intl.NumberFormat('id-ID').format(price)
@@ -178,6 +210,53 @@ onMounted(async () => {
 
 .booking-details p {
   margin: 0;
+}
+
+.booking-price {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.btn-sm {
+  padding: 0.4rem 0.9rem;
+  font-size: 0.8rem;
+}
+
+.btn-danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.action-message {
+  margin-top: 1.5rem;
+  padding: 0.9rem 1.2rem;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+}
+
+.action-success {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.action-error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
 }
 
 @media (max-width: 768px) {

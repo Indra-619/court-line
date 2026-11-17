@@ -3,6 +3,7 @@ package infrastructure
 import (
 	"context"
 	"errors"
+	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -161,6 +162,27 @@ func (r *MongoBookingRepository) Update(ctx context.Context, booking *entity.Boo
 		},
 	}
 
+	res, err := r.coll.UpdateOne(ctx, bson.M{"_id": objID}, update)
+	if err != nil {
+		return err
+	}
+	if res.MatchedCount == 0 {
+		return repository.ErrNotFound
+	}
+	return nil
+}
+
+func (r *MongoBookingRepository) UpdateStatus(ctx context.Context, id string, status entity.BookingStatus) error {
+	objID, err := parseID(id)
+	if err != nil {
+		return err
+	}
+	update := bson.M{
+		"$set": bson.M{
+			"status":    models.BookingStatus(status),
+			"updatedAt": time.Now(),
+		},
+	}
 	res, err := r.coll.UpdateOne(ctx, bson.M{"_id": objID}, update)
 	if err != nil {
 		return err

@@ -48,11 +48,17 @@
               </span>
             </div>
           </div>
+
+          <AvailabilityCalendar :key="calendarKey" :court-id="court.id" />
         </div>
 
         <!-- Booking Form -->
         <div class="booking-section">
-          <BookingForm 
+          <div v-if="!court.isAvailable" class="unavailable-banner">
+            This court is currently unavailable for booking.
+          </div>
+          <BookingForm
+            v-else
             :court-id="court.id" 
             :price-per-hour="court.pricePerHour"
             @success="handleBookingSuccess"
@@ -74,6 +80,7 @@ const config = useRuntimeConfig()
 
 const court = ref(null)
 const loading = ref(true)
+const calendarKey = ref(0)
 const defaultImage = 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=800&h=500&fit=crop'
 
 const toast = ref({
@@ -95,6 +102,8 @@ const showToast = (message, type = 'success') => {
 
 const handleBookingSuccess = (booking) => {
   showToast('Booking created successfully! Check your bookings.', 'success')
+  // Nudge the calendar to refetch so the new slot shows as booked.
+  calendarKey.value++
 }
 
 const handleBookingError = (error) => {
@@ -103,24 +112,13 @@ const handleBookingError = (error) => {
 
 onMounted(async () => {
   const courtId = route.params.id
-  
+
   try {
     const response = await $fetch(`${config.public.apiBase}/api/courts/${courtId}`)
     court.value = response.data
   } catch (error) {
     console.error('Failed to fetch court:', error)
-    // Sample data for demo
-    court.value = {
-      id: courtId,
-      name: 'Sample Court',
-      type: 'Futsal',
-      location: 'Jakarta',
-      description: 'A modern futsal court with artificial turf and full facilities.',
-      pricePerHour: 150000,
-      imageUrl: defaultImage,
-      facilities: ['Changing Room', 'Parking', 'Cafeteria', 'Shower'],
-      isAvailable: true
-    }
+    court.value = null
   } finally {
     loading.value = false
   }
@@ -232,6 +230,16 @@ onMounted(async () => {
 .booking-section {
   position: sticky;
   top: 100px;
+}
+
+.unavailable-banner {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  text-align: center;
+  font-weight: 600;
 }
 
 .loading-container,

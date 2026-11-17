@@ -9,6 +9,7 @@
       <div class="navbar-menu">
         <NuxtLink to="/" class="nav-link">Home</NuxtLink>
         <NuxtLink v-if="isLoggedIn" to="/bookings" class="nav-link">My Bookings</NuxtLink>
+        <NuxtLink v-if="user?.role === 'admin'" to="/admin/bookings" class="nav-link">Admin</NuxtLink>
       </div>
 
       <div class="navbar-auth">

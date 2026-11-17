@@ -186,6 +186,20 @@ func (f *FakeBookingRepository) Update(ctx context.Context, booking *entity.Book
 	return repository.ErrNotFound
 }
 
+func (f *FakeBookingRepository) UpdateStatus(ctx context.Context, id string, status entity.BookingStatus) error {
+	if f.Err != nil {
+		return f.Err
+	}
+	for _, b := range f.Bookings {
+		if b.ID == id {
+			b.Status = status
+			b.UpdatedAt = time.Now()
+			return nil
+		}
+	}
+	return repository.ErrNotFound
+}
+
 // FakeUserRepository is an in-memory UserRepository.
 type FakeUserRepository struct {
 	Users map[string]*entity.User

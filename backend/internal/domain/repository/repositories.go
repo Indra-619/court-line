@@ -39,6 +39,9 @@ type BookingRepository interface {
 	FindActiveByCourtAndDate(ctx context.Context, courtID, date string) ([]*entity.Booking, error)
 	Create(ctx context.Context, booking *entity.Booking) error
 	Update(ctx context.Context, booking *entity.Booking) error
+	// UpdateStatus changes only the status field; lifecycle transitions
+	// are validated by the handler before calling this.
+	UpdateStatus(ctx context.Context, id string, status entity.BookingStatus) error
 }
 
 type UserRepository interface {
