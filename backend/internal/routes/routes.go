@@ -51,7 +51,7 @@ func SetupRouter(deps Deps) *gin.Engine {
 	// CORS configuration
 	config := cors.Config{
 		AllowOrigins:     allowedOrigins(),
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
@@ -103,6 +103,15 @@ func SetupRouter(deps Deps) *gin.Engine {
 		{
 			bookings.POST("", deps.Bookings.CreateBooking)
 			bookings.GET("", deps.Bookings.GetBookings)
+			bookings.DELETE("/:id", deps.Bookings.CancelBooking)
+		}
+
+		// Admin booking management
+		adminBookings := api.Group("/admin/bookings")
+		adminBookings.Use(middleware.AuthMiddleware(), middleware.AdminMiddleware())
+		{
+			adminBookings.GET("", deps.Bookings.GetAllBookings)
+			adminBookings.PATCH("/:id/status", deps.Bookings.UpdateBookingStatus)
 		}
 	}
 
