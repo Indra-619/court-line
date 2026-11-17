@@ -161,6 +161,17 @@ func OptionalAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
+		// Honour logout revocation here too: a revoked token must not
+		// be recognised as a user on optional-auth endpoints. Lookup
+		// failures degrade to anonymous (the endpoint is public anyway).
+		if jti, ok := claims["jti"].(string); ok && jti != "" {
+			revoked, err := tokenBlacklist(c.Request.Context(), jti)
+			if err != nil || revoked {
+				c.Next()
+				return
+			}
+		}
+
 		c.Set("userID", userObjID)
 		c.Next()
 	}

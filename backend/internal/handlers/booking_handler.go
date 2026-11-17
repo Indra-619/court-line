@@ -102,6 +102,10 @@ func (h *BookingHandler) CreateBooking(c *gin.Context) {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Court not found"})
 		return
 	}
+	if !court.IsAvailable {
+		c.JSON(http.StatusConflict, gin.H{"error": "Court is currently unavailable for booking"})
+		return
+	}
 
 	// Calculate total price from exact minute-based duration
 	hours, err := pricing.CalculateHours(input.StartTime, input.EndTime)
@@ -139,7 +143,7 @@ func (h *BookingHandler) CreateBooking(c *gin.Context) {
 		}
 	}
 
-	now := time.Now()
+	now := nowFn()
 	booking := &entity.Booking{
 		CourtID:       input.CourtID,
 		UserID:        userID,
@@ -183,7 +187,8 @@ func (h *BookingHandler) GetBookings(c *gin.Context) {
 		bookings = []*entity.Booking{}
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": bookings})
+	limit, offset := listPagination(c)
+	c.JSON(http.StatusOK, gin.H{"data": pageSlice(bookings, limit, offset)})
 }
 
 // BookingPublicView exposes only non-sensitive booking fields to
@@ -228,5 +233,6 @@ func (h *BookingHandler) GetBookingsByCourtID(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"data": toBookingsPublicView(bookings)})
+	limit, offset := listPagination(c)
+	c.JSON(http.StatusOK, gin.H{"data": pageSlice(toBookingsPublicView(bookings), limit, offset)})
 }

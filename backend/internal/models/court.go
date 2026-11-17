@@ -30,3 +30,17 @@ type CreateCourtInput struct {
 	ImageURL     string   `json:"imageUrl"`
 	Facilities   []string `json:"facilities"`
 }
+
+// UpdateCourtInput represents input for updating a court. IsAvailable is
+// a pointer so an omitted field keeps the stored value while an explicit
+// false can disable the court.
+type UpdateCourtInput struct {
+	Name         string   `json:"name" binding:"required"`
+	Type         string   `json:"type" binding:"required"`
+	Location     string   `json:"location" binding:"required"`
+	Description  string   `json:"description"`
+	PricePerHour float64  `json:"pricePerHour" binding:"required"`
+	ImageURL     string   `json:"imageUrl"`
+	Facilities   []string `json:"facilities"`
+	IsAvailable  *bool    `json:"isAvailable"`
+}
